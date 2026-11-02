@@ -1,0 +1,350 @@
+<meta charset="utf-8">
+<title>Hash Functions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan
+   Layout: full-screen slide deck, 7 slides, centered column, fixed chrome (dots top, controls bottom)
+   Color: deep navy lab-dark (#0A0E1A) + surface #121A2E, text E8ECF7, cyan accent (digests/OK), amber (tampered)
+   Type: Sora display for slide titles, Manrope body, IBM Plex Mono for every hash/code string */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --warn: #F5B14C;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+/* the deck */
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  padding: 64px max(16px, env(safe-area-inset-left, 0px)) 92px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 62ch; width: 100%; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.5rem, 4.5vw, 2.4rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: 1rem; }
+code, .hash { font-family: var(--mono); font-size: .82em; }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 6px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 640px; }
+.cards.list { max-width: 560px; }
+.card {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
+  padding: 14px 16px; min-width: 0;
+}
+.card b { display: block; font-family: var(--display); font-weight: 600; font-size: .98rem; margin-bottom: 3px; }
+.card span { color: var(--muted); font-size: .88rem; }
+
+/* pipeline diagram */
+.pipe { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 10px auto 0; }
+.chip {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 9px;
+  padding: 10px 14px; font-family: var(--mono); font-size: .8rem; color: var(--fg); white-space: nowrap;
+}
+.chip b { color: var(--accent); font-weight: 500; }
+.arrow { color: var(--muted); font-size: 1.1rem; }
+.note { color: var(--muted); font-size: .85rem; }
+
+/* live demo */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; padding: 18px; max-width: 620px; width: 100%; text-align: left; margin: 4px auto 0; }
+.demo label { display: block; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-family: var(--mono); margin-bottom: 8px; }
+.demo input {
+  width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--edge);
+  border-radius: 8px; color: var(--fg); font-family: var(--mono); font-size: .95rem; padding: 11px 12px; outline: none;
+}
+.demo input:focus { border-color: var(--accent); }
+.hashline { margin-top: 14px; }
+.hashline .lbl { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-family: var(--mono); }
+.digest { font-family: var(--mono); font-size: .82rem; word-break: break-all; color: var(--accent); margin-top: 4px; }
+
+/* integrity stage */
+.stage { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; padding: 20px; max-width: 640px; width: 100%; text-align: left; margin: 4px auto 0; }
+.row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; min-width: 0; flex-wrap: wrap; }
+.row .lbl { font-family: var(--mono); font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+.row .val { font-family: var(--mono); font-size: .78rem; word-break: break-all; min-width: 240px; flex: 1; text-align: right; }
+.msg { font-family: var(--mono); font-size: .86rem; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--edge); }
+.msg em { font-style: normal; color: var(--warn); }
+.ok { color: var(--accent); }
+.nok { color: var(--bad); }
+.verdict { margin-top: 14px; font-family: var(--display); font-weight: 600; font-size: 1.02rem; }
+button {
+  font: inherit; cursor: pointer; background: var(--accent); color: var(--accent-ink);
+  border: 0; border-radius: 9px; padding: 10px 18px; font-weight: 700;
+}
+button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.btn-ghost { background: transparent; color: var(--fg); border: 1px solid var(--edge); font-weight: 500; }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* chrome */
+.dots { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 9px; z-index: 10; padding: 4px; }
+.dots button { width: 9px; height: 9px; border-radius: 50%; padding: 0; background: var(--edge); }
+.dots button[aria-current="true"] { background: var(--accent); }
+.dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.controls {
+  position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between;
+  align-items: center; gap: 10px; z-index: 10;
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.counter { font-family: var(--mono); font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nav { display: flex; gap: 8px; }
+.nav button { min-width: 46px; font-family: var(--mono); font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
+
+<div class="deck" id="deck">
+
+  <section class="slide">
+    <div class="inner">
+      <div class="eyebrow">cryptographic hash functions</div>
+      <h1>A fingerprint for data</h1>
+      <p class="p">How SHA-256 turns any input into a fixed-size digest and how comparing digests proves data hasn't changed.</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>What a hash function does</h2>
+      <div class="pipe">
+        <span class="chip">input: any size<br>2 bytes … 2 GB</span>
+        <span class="arrow">→</span>
+        <span class="chip"><b>SHA-256</b><br>one-way function</span>
+        <span class="arrow">→</span>
+        <span class="chip">digest:<br>256 bits, always</span>
+      </div>
+      <p class="p">Same input → same digest, every time. You can hash a password or a movie and get exactly 64 hex characters back. Going from digest back to input is practically impossible.</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>Four properties that make it useful</h2>
+      <div class="cards two">
+        <div class="card"><b>Deterministic</b><span>the same input always produces the same hash</span></div>
+        <div class="card"><b>One-way</b><span>practically impossible to reverse the digest</span></div>
+        <div class="card"><b>Collision-resistant</b><span>no two different inputs known to share a digest</span></div>
+        <div class="card"><b>Avalanche effect</b><span>one changed bit → the whole digest changes</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>Try it: the avalanche effect</h2>
+      <div class="demo">
+        <label for="demoInput">Type anything, then change one character</label>
+        <input id="demoInput" value="security" spellcheck="false" autocomplete="off">
+        <div class="hashline">
+          <span class="lbl">SHA-256 digest</span>
+          <div class="digest" id="demoDigest"></div>
+        </div>
+      </div>
+      <p class="note">Hashed live in JavaScript. Changing a single letter rewrites all 64 characters.</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>Integrity check in practice</h2>
+      <div class="stage">
+        <div class="row"><span class="lbl">Sender's digest</span><span class="val" id="sentDigest"></span></div>
+        <div class="row"><span class="lbl">Receiver's digest</span><span class="val" id="recvDigest"></span></div>
+        <div class="msg" id="msgText"></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <button class="btn-ghost" id="tamperBtn">Tamper with the message</button>
+      <p class="note">Press the button to swap <code>Alice</code> for <code>Eve</code> in transit, then again to send it honest.</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>Where hashes guard data</h2>
+      <div class="cards list">
+        <div class="card"><b>Software downloads</b><span>publishers post digests; package managers recompute to catch modified files</span></div>
+        <div class="card"><b>Password storage</b><span>store the hash, never the password</span></div>
+        <div class="card"><b>Digital signatures</b><span>sign the digest, not the document</span></div>
+        <div class="card"><b>Blockchains &amp; tables</b><span>each block links to the previous block's digest; fixed-length digests make comparisons cheap</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <div class="eyebrow">summary</div>
+      <h2>Detect corruption, prove untampered, store safely, sign</h2>
+      <p class="p">A hash is a fingerprint: cheap to compute, honest by nature. If the fingerprint you check doesn't match the one you were given, the data changed -> don't trust it.</p>
+      <code class="hash" style="color: var(--muted)">python verify_integrity.py &nbsp;·&nbsp; sha256sum file.zip</code>
+    </div>
+  </section>
+
+</div>
+
+<div class="controls">
+  <span class="counter" id="counter">1 / 7</span>
+  <div class="nav">
+    <button class="btn-ghost" id="prev" aria-label="Previous slide">←</button>
+    <button class="btn-ghost" id="next" aria-label="Next slide">→</button>
+  </div>
+</div>
+
+<script>
+// Pure JS SHA-256 (FIPS 180-4), so the demo runs offline and on file:// too.
+const K = new Uint32Array([
+0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+
+function sha256Bytes(bytes) {
+  const rotr = (v, c) => ((v >>> c) | (v << (32 - c))) >>> 0;
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+                             0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const l = bytes.length, bitLen = l * 8;
+  const padded = new Uint8Array((((l + 8) >> 6) + 1) << 6);
+  padded.set(bytes); padded[l] = 0x80;
+  const dv = new DataView(padded.buffer);
+  dv.setUint32(padded.length - 8, Math.floor(bitLen / 4294967296));
+  dv.setUint32(padded.length - 4, bitLen >>> 0);
+  const w = new Uint32Array(64);
+  for (let i = 0; i < padded.length; i += 64) {
+    for (let j = 0; j < 16; j++) w[j] = dv.getUint32(i + j * 4);
+    for (let j = 16; j < 64; j++) {
+      const s0 = (rotr(w[j-15],7) ^ rotr(w[j-15],18) ^ (w[j-15] >>> 3));
+      const s1 = (rotr(w[j-2],17) ^ rotr(w[j-2],19) ^ (w[j-2] >>> 10));
+      w[j] = (w[j-16] + s0 + w[j-7] + s1) >>> 0;
+    }
+    let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+    for (let j = 0; j < 64; j++) {
+      const S1 = rotr(e,6) ^ rotr(e,11) ^ rotr(e,25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + K[j] + w[j]) >>> 0;
+      const S0 = rotr(a,2) ^ rotr(a,13) ^ rotr(a,22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  return Array.from(H, x => x.toString(16).padStart(8, '0')).join('');
+}
+const sha256 = s => sha256Bytes(new TextEncoder().encode(s));
+
+/* ---- deck ---- */
+const slides = Array.from(document.querySelectorAll('.slide'));
+let cur = 0;
+
+const dotsEl = document.getElementById('dots');
+slides.forEach((_, i) => {
+  const d = document.createElement('button');
+  d.setAttribute('aria-label', 'Slide ' + (i + 1));
+  d.addEventListener('click', () => show(i));
+  dotsEl.appendChild(d);
+});
+const dots = Array.from(dotsEl.children);
+
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, j) => s.classList.toggle('active', j === cur));
+  dots.forEach((d, j) => d.setAttribute('aria-current', j === cur ? 'true' : 'false'));
+  document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').disabled = cur === slides.length - 1;
+  document.getElementById('prev').style.opacity = cur === 0 ? '.4' : '1';
+  document.getElementById('next').style.opacity = cur === slides.length - 1 ? '.4' : '1';
+}
+document.getElementById('prev').addEventListener('click', () => show(cur - 1));
+document.getElementById('next').addEventListener('click', () => show(cur + 1));
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); show(cur + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); show(cur - 1); }
+});
+show(0);
+
+/* ---- slide 4: live avalanche demo ---- */
+const input = document.getElementById('demoInput');
+const out = document.getElementById('demoDigest');
+function runDemo() {
+  out.textContent = sha256(input.value);
+  out.classList.toggle('ok', input.value === 'security');
+}
+input.addEventListener('input', runDemo);
+runDemo();
+
+/* ---- slide 5: sender / receiver integrity stage ---- */
+const original = 'Transfer: 1,000 coins from Alice to Bob.';
+let tampered = false;
+const msgEl = document.getElementById('msgText');
+const sentEl = document.getElementById('sentDigest');
+const recvEl = document.getElementById('recvDigest');
+const verdictEl = document.getElementById('verdict');
+const tamperBtn = document.getElementById('tamperBtn');
+
+function runStage() {
+  const received = tampered ? original.replace('Alice', 'Eve') : original;
+  const sent = sha256(original), recv = sha256(received);
+  sentEl.textContent = sent;
+  recvEl.textContent = recv;
+  msgEl.innerHTML = 'message: "' + (tampered ? original.replace('Alice', '<em>Eve</em>') : original) + '"';
+  if (sent === recv) {
+    verdictEl.textContent = 'INTEGRITY OK -> message unchanged';
+    verdictEl.className = 'verdict ok';
+    sentEl.className = recvEl.className = 'val ok';
+  } else {
+    verdictEl.textContent = 'INTEGRITY FAILED -> message was modified in transit';
+    verdictEl.className = 'verdict nok';
+    sentEl.className = 'val'; recvEl.className = 'val nok';
+  }
+}
+tamperBtn.addEventListener('click', () => { tampered = !tampered; runStage(); });
+runStage();
+</script>

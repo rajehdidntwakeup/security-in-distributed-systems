@@ -1,0 +1,8 @@
+2. Hash-Funktionen und Integrität:
+Aufgabe: Erläutern Sie die Bedeutung von Hash-Funktionen in der Kryptographie und wie sie zur Sicherstellung der Datenintegrität beitragen.
+Erstellen Sie ein Beispiel, in dem Sie mithilfe einer Hash-Funktion (z. B. SHA-256) die Integrität einer Datei oder Nachricht überprüfen.
+
+English version:
+2. Hash functions and integrity:
+Explain the importance of hash functions in cryptography and how they help ensure data integrity.
+Create an example in which you use a hash function (e.g., SHA-256) to verify the integrity of a file or message.
