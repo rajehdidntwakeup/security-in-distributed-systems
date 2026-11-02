@@ -1,0 +1,370 @@
+<meta charset="utf-8">
+<title>Symmetric Encryption: AES-256-GCM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-3/hash-collisions-presentation.html
+   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, fixed dots + arrows
+   Color: lab-dark navy on surface; cyan = secure/OK, red = attack
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (keys/ciphertexts/math) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; margin: 0 auto; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code, .math, .hash { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+.math { font-size: clamp(1.05rem, 3vw, 1.5rem); }
+.math small { color: var(--muted); font-size: .62em; }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 720px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.attack { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+/* chain diagram */
+.chain { font-family: var(--mono); font-size: clamp(.78rem, 2.6vw, 1rem); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 14px; max-width: 780px; margin: 0 auto; width: 100%; }
+.chain .pl { color: var(--accent); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .hashnode { color: var(--fg); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .op { color: var(--muted); }
+.chain .op.h { color: var(--accent); }
+.chain .red { color: var(--bad); }
+
+/* live demo */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 680px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 12px; }
+.demo .field { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.demo label { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.demo input[type=text] { flex: 1 1 200px; min-width: 0; background: var(--surface-2); border: 1px solid var(--edge); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: .9rem; }
+.demo input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.demo .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; }
+.demo .btn.btnBad { background: var(--bad); color: #2A0A0A; }
+.demo .row { font-family: var(--mono); font-size: .78rem; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.demo .row .tag { display: inline-block; color: var(--accent-ink); background: var(--accent); border-radius: 5px; padding: 0 6px; font-size: .68rem; }
+.demo .row.xor .tag { background: var(--bad); }
+.demo .out { color: var(--muted); }
+.demo .out.ok { color: var(--accent); }
+.demo .out.err { color: var(--bad); font-weight: 700; }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+/* summary table */
+.tablewrap { overflow-x: auto; max-width: 720px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+/* verdict pill */
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: #2A0A0A; }
+
+/* controls */
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-4 · Symmetric Encryption</p>
+      <h1>AES-256-GCM: One Key, Both Directions</h1>
+      <p class="p">How the standard cipher keeps data confidential and untampered, and what breaks it in practice.</p>
+    </div>
+  </section>
+
+  <!-- 2 · principle -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">Principle</p>
+    <h2>One shared secret key</h2>
+    <div class="inner">
+      <p class="math">E<sub>k</sub>(P) <small>=</small> C&nbsp;&nbsp;&nbsp;D<sub>k</sub>(C) <small>=</small> P&nbsp;&nbsp;<small>(same k on both sides)</small></p>
+      <p class="p">Same key encrypts and decrypts. Both parties must share it over a confidential channel in advance: the <b>key distribution problem</b>. Used everywhere bulk data moves fast: TLS, disk encryption, VPNs, Wi-Fi.</p>
+    </div>
+  </section>
+
+  <!-- 3 · AES -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">The algorithm</p>
+    <h2>AES, 14 rounds of scramble</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">state</span><span class="op h">→</span><span class="hashnode">SubBytes</span><span class="op h">→</span><span class="hashnode">ShiftRows</span><span class="op h">→</span><span class="hashnode">MixColumns</span><span class="op h">→</span><span class="hashnode">AddRoundKey</span><span class="op h">→</span><span class="pl">×14</span>
+      </div>
+      <p class="p">Each round substitutes (S-box), shifts and mixes the 4×4 state bytes, then XORs a round key from the 256-bit master key. Result: <b>avalanche</b>, one flipped plaintext bit changes about half the ciphertext bits. No practical break exists; brute force over <code>2<sup>256</sup></code> keys is hopeless.</p>
+    </div>
+  </section>
+
+  <!-- 4 · GCM -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Mode of operation</p>
+    <h2>GCM: secrecy plus a tag</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">P</span><span class="op">⊕</span><span class="hashnode">keystream</span><span class="op h">→</span><span class="pl">C</span><span class="op h">→</span><span class="hashnode">GHASH</span><span class="op h">→</span><span class="pl">tag</span>
+      </div>
+      <div class="cards two">
+        <div class="card"><b>Nonce (96 bit)</b><span>Seeds the keystream. Must be <b>fresh per message</b> under the same key.</span></div>
+        <div class="card good"><b>Tag (128 bit)</b><span>GHASH over the ciphertext: detects <b>any</b> modification. Decryption verifies first, releases plaintext only on match.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · code -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Code · Python</p>
+    <h2>Four lines, done right</h2>
+    <div class="inner">
+      <div class="demo" style="font-family:var(--mono); font-size:.82rem; color:var(--accent); line-height:1.7; overflow-x:auto;">
+key   = AESGCM.generate_key(bit_length=256)
+nonce = os.urandom(12)                          # fresh per message
+ct    = AESGCM(key).encrypt(nonce, message, None)
+pt    = AESGCM(key).decrypt(nonce, ct, None)    # tag verified first
+      </div>
+      <p class="p">Keys from a password? Stretch it with a salted KDF (scrypt) first. Full runnable demo: <code>aes_demo.py</code>.</p>
+    </div>
+  </section>
+
+  <!-- 6 · attacks -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">Attacks</p>
+    <h2>What actually breaks AES</h2>
+    <div class="inner">
+      <div class="cards two">
+        <div class="card attack"><b>Nonce reuse</b><span>Same key + same nonce = same keystream, a <b>two-time pad</b>: C₁⊕C₂ = P₁⊕P₂, the keystream cancels and one known message leaks the other. No AES broken.</span></div>
+        <div class="card attack"><b>Key management</b><span>Keys in source code, passwords instead of random keys, keys left in memory. The usual real-world cause of "broken AES".</span></div>
+        <div class="card attack"><b>Missing authentication</b><span>Without a tag, ciphertexts are malleable, and CBC error messages leak plaintexts (padding oracles).</span></div>
+        <div class="card attack"><b>Side channels</b><span>Timing and power attacks on implementations. Defense: constant-time, vetted libraries. Never roll your own AES.</span></div>
+      </div>
+      <p class="p">Brute force was never the threat; <code>2<sup>256</sup></code> keys end that discussion.</p>
+    </div>
+  </section>
+
+  <!-- 7 · live demo -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">Live demo</p>
+    <h2>AES-GCM in your browser</h2>
+    <div class="demo">
+      <div class="field">
+        <label for="msgInput">Plaintext</label>
+        <input type="text" id="msgInput" value="Attack at dawn on bridge #42" spellcheck="false" autocomplete="off">
+        <button class="btn" id="encBtn" type="button">Encrypt</button>
+      </div>
+      <div class="row"><span class="tag">nonce</span> <span class="out" id="nonceOut">-</span></div>
+      <div class="row"><span class="tag">ct</span> <span class="out" id="ctOut">-</span></div>
+      <div class="row"><span class="tag">dec</span> <span class="out" id="decOut">-</span></div>
+      <div class="field">
+        <button class="btn btnBad" id="tampBtn" type="button">Flip 1 bit</button>
+        <button class="btn btnBad" id="reuseBtn" type="button">Encrypt 2nd msg, same nonce</button>
+      </div>
+      <div class="row xor"><span class="tag">P₂ leaked</span> <span class="out" id="leakOut">-</span></div>
+      <div class="note" id="demoNote">Web Crypto runs real AES-256-GCM right here. Flip 1 bit → the tag kills it. Reuse the nonce → the keystream cancels and the second message leaks.</div>
+    </div>
+  </section>
+
+  <!-- 8 · vs asymmetric + takeaway -->
+  <section class="slide" id="s8">
+    <p class="eyebrow">Symmetric vs. asymmetric</p>
+    <h2>Different tools, one pipeline</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th></th><th>Symmetric (AES-GCM)</th><th>Asymmetric (RSA / ECC)</th></tr>
+        <tr><td>Keys</td><td>One shared secret</td><td>Key pair (public + private)</td></tr>
+        <tr><td>Key distribution</td><td><span class="no">Hard</span>: needs secret channel</td><td><span class="yes">Easy</span>: public key is public</td></tr>
+        <tr><td>Speed</td><td><span class="yes">GB/s</span></td><td>100–1000× slower</td></tr>
+        <tr><td>Bulk data</td><td><span class="yes">Yes</span>: arbitrary length</td><td>Bounded by key size</td></tr>
+        <tr><td>Quantum</td><td>AES-256 stays safe (Grover)</td><td>Broken (Shor)</td></tr>
+      </table>
+    </div>
+    <div class="inner">
+      <p class="p">Real systems are <b>hybrid</b> (TLS 1.3): asymmetric crypto authenticates the peers and derives the session key, AES-GCM then encrypts the whole session. Asymmetric says <em>who</em>, symmetric moves <em>the data</em>.</p>
+      <span class="verdict bad">Never reuse nonces, never hand-roll AES</span>
+      <span class="verdict">AES-256-GCM: key ‖ fresh nonce ‖ tag</span>
+    </div>
+  </section>
+</div>
+
+<nav class="dots" id="dots" aria-label="Slide navigation"></nav>
+<div class="ctrl">
+  <button id="prevBtn" type="button">← Prev</button>
+  <button id="nextBtn" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsEl = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var cur = 0;
+
+  slides.forEach(function (s, i) {
+    var d = document.createElement('button');
+    d.className = 'dot'; d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (i + 1));
+    d.addEventListener('click', function () { go(i); });
+    dotsEl.appendChild(d);
+  });
+  var dots = dotsEl.children;
+
+  function go(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, j) {
+      s.classList.toggle('active', j === cur);
+      if (j === cur) s.scrollTop = 0;
+      dots[j].classList.toggle('active', j === cur);
+    });
+    pgnum.textContent = (cur + 1) + ' / ' + slides.length;
+    if (cur === 6) initDemo(); // slide 7 - live demo
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
+  document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(cur + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  });
+
+  /* ---- live demo: real AES-256-GCM via Web Crypto ---- */
+  var hexBuf = function (buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+      return ('0' + b.toString(16)).slice(-2);
+    }).join('');
+  };
+
+  var key = null, nonce = null, ct = null, demoReady = false;
+
+  function initDemo() {
+    if (demoReady) return;
+    demoReady = true;
+    crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+      .then(function (k) { key = k; encrypt1(); });
+    document.getElementById('encBtn').addEventListener('click', encrypt1);
+    document.getElementById('tampBtn').addEventListener('click', tamper);
+    document.getElementById('reuseBtn').addEventListener('click', reuseNonce);
+  }
+
+  function enc(text, nonceBytes) {
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonceBytes }, key,
+      new TextEncoder().encode(text));
+  }
+
+  function decrypt(bytes) {
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, bytes)
+      .then(function () { return true; })
+      .catch(function () { return false; });
+  }
+
+  function set(id, text, cls) {
+    document.getElementById(id).textContent = text;
+    document.getElementById(id).className = 'out' + (cls ? ' ' + cls : '');
+  }
+
+  function encrypt1() {
+    var pt = document.getElementById('msgInput').value;
+    nonce = crypto.getRandomValues(new Uint8Array(12));
+    enc(pt, nonce).then(function (c) {
+      ct = new Uint8Array(c);
+      document.getElementById('nonceOut').textContent = hexBuf(nonce);
+      document.getElementById('ctOut').textContent = hexBuf(ct.slice(0, ct.length - 16)).slice(0, 32) + '…';
+      decrypt(ct).then(function (ok) { set('decOut', ok ? 'tag verified → plaintext back' : 'InvalidTag', 'ok'); });
+      set('leakOut', '-');
+      document.getElementById('demoNote').textContent = 'Web Crypto runs real AES-256-GCM right here. Flip 1 bit → the tag kills it. Reuse the nonce → the keystream cancels and the second message leaks.';
+    });
+  }
+
+  function tamper() {
+    if (!ct) return;
+    var broken = new Uint8Array(ct);
+    broken[0] ^= 0x01; // flip one bit of the ciphertext
+    decrypt(broken).then(function (ok) {
+      set('decOut', ok ? 'decrypted?! never' : 'InvalidTag → plaintext refused', 'err');
+      document.getElementById('demoNote').textContent = 'One flipped ciphertext bit and the 128-bit tag no longer matches → decryption fails. Nothing is released to the attacker.';
+    });
+  }
+
+  function reuseNonce() {
+    if (!ct) return;
+    var p1 = document.getElementById('msgInput').value;
+    var p2 = 'Transfer 5000 EUR to Mallory';
+    enc(p2, nonce).then(function (c) { // same nonce deliberately!
+      var c2 = new Uint8Array(c);
+      var c1 = ct.slice(0, ct.length - 16);
+      var n = Math.min(c1.length, c2.length, p1.length, p2.length);
+      var leak = new Uint8Array(n);
+      for (var i = 0; i < n; i++) leak[i] = c1[i] ^ c2[i] ^ p1.charCodeAt(i);
+      set('leakOut', 'attacker knows P1 → recovers P2: "' +
+        String.fromCharCode.apply(null, leak) + '"', 'err');
+      document.getElementById('demoNote').textContent = 'Same nonce → C₁⊕C₂ = P₁⊕P₂. The keystream cancelled out: knowing the first message reveals the secret second one (and the tag breaks too).';
+    });
+  }
+
+  go(0);
+})();
+</script>
