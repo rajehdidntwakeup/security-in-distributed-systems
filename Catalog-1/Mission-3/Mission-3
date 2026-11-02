@@ -1,0 +1,10 @@
+3. Hashing mit Salting und Peppering:
+Beschreiben Sie den Begriff „Kollision“ im Kontext des Hashings und erläutern Sie das Konzept der Rainbow-Tabellen.
+Wie können Kollisionen oder Rainbow-Tabellen für einen Angriff verwendet werden? Erklären Sie, wie Salting und Peppering den Schutz von Hash-Werten erhöhen.
+Implementieren Sie ein Hashing-Beispiel unter Verwendung von Salting und optional Peppering.
+
+English version:
+Hashing with Salting and Peppering:
+Describe the term "collision" in the context of hashing and explain the concept of rainbow tables.
+How can collisions or rainbow tables be used in an attack? Explain how salting and peppering increase the protection of hash values.
+Implement a hashing example using salting and, optionally, peppering.

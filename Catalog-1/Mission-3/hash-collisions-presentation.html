@@ -1,0 +1,356 @@
+<meta charset="utf-8">
+<title>Collisions &amp; Rainbow Tables</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as mission-2/hash-presentation.html
+   Layout: fullscreen slide deck, 11 slides, centered column, fixed dots + arrow controls
+   Color: lab-dark navy (#0A0E1A) on surface #131A2E; cyan = digests/OK, amber = warning, red = attack
+   Type: Sora display (titles), Manrope (body), IBM Plex Mono (every hash/chain/math string) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --warn: #F5B14C;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; margin: 0 auto; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code, .math, .hash { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+.math { font-size: clamp(1.05rem, 3vw, 1.5rem); }
+.math small { color: var(--muted); font-size: .62em; }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 720px; }
+.cards.list { max-width: 620px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span b { font-weight: 700; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.attack { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+
+/* chain diagram */
+.chain { font-family: var(--mono); font-size: clamp(.78rem, 2.6vw, 1rem); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 14px; max-width: 760px; margin: 0 auto; width: 100%; }
+.chain .pl { color: var(--accent); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .hashnode { color: var(--fg); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .op { color: var(--muted); }
+.chain .op.h { color: var(--accent); }
+.chain .op.r { color: var(--warn); }
+.chain .endpoint { border-color: var(--accent); }
+
+/* steps */
+.steps { display: grid; gap: 10px; max-width: 620px; margin: 8px auto 0; width: 100%; text-align: left; }
+.step { display: flex; gap: 12px; align-items: baseline; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 16px; }
+.step .n { font-family: var(--mono); color: var(--accent); font-size: .8rem; flex: none; }
+
+/* live demo */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 680px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 12px; }
+.demo .field { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.demo label { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.demo input[type=text] { flex: 1 1 200px; min-width: 0; background: var(--surface-2); border: 1px solid var(--edge); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: .9rem; }
+.demo input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.demo .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; }
+.demo .row { font-family: var(--mono); font-size: .78rem; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.demo .row .tag { display: inline-block; color: var(--accent-ink); background: var(--accent); border-radius: 5px; padding: 0 6px; font-size: .68rem; }
+.demo .row.salt .tag { background: var(--warn); }
+.demo .out { color: var(--muted); }
+.demo .note { color: var(--muted); font-size: .8rem; }
+.demo .same-note { color: var(--bad); }
+.demo .diff-note { color: var(--accent); }
+
+/* summary table */
+.tablewrap { overflow-x: auto; max-width: 720px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+
+/* verdict pill */
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: #2A0A0A; }
+
+/* controls */
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-3 · Password Hashing</p>
+      <h1>Collisions, Rainbow Tables &amp; The Salt Defense</h1>
+      <p class="p">When you only store <code>H(password)</code>, the maths already works against you unless you salt, pepper and slow it down.</p>
+    </div>
+  </section>
+
+  <!-- 2 · collision -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">1 · Collision</p>
+    <h2>Two inputs, one hash</h2>
+    <div class="inner">
+      <p class="math">H(x) <small>=</small> H(y) <small>with</small> x <small>≠</small> y</p>
+      <p class="p"><b>Pigeonhole principle</b>: hashing maps an infinite input space onto a fixed output space (SHA-256 → 2<sup>256</sup> values). Collisions are therefore always <b>possible</b>, a good hash only makes them <b>hard to find</b>.</p>
+      <div class="cards list">
+        <div class="card"><b>Attacker's goal</b><span>For passwords this is a <b>preimage</b> problem: given hash h, find any input with H(input) = h. And humans give them a tiny search space.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · three attack types -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">1 · Collision</p>
+    <h2>Three ways to clash</h2>
+    <div class="inner">
+      <div class="cards three">
+        <div class="card"><b>Collision</b><span>Find <em>any</em> pair x, y with H(x) = H(y). Birthday attack: ~2<sup>n/2</sup> work for an n-bit hash.</span></div>
+        <div class="card"><b>Second preimage</b><span>Fix y. Find x ≠ y with H(x) = H(y). Defeats signature/integrity checks on chosen documents.</span></div>
+        <div class="card"><b>Preimage</b><span>Given h, find any x with H(x) = h. <b>Password cracking</b> - but over trillions of human passwords, not 2<sup>256</sup>.</span></div>
+      </div>
+      <p class="p">SHA-256 survives generic attacks - yet password hashing still breaks, because nobody's password is 256 bits of entropy.</p>
+    </div>
+  </section>
+
+  <!-- 4 · rainbow tables -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">1 · Rainbow tables</p>
+    <h2>Invert hashes without brute force</h2>
+    <div class="inner">
+      <p class="p">A <b>rainbow table</b> is a precomputed data structure that recovers the plaintext for a given hash - all work done in advance. Time-memory trade-off.</p>
+      <div class="cards list">
+        <div class="card attack"><b>Why not a plain lookup table?</b><span>All passwords ≤ 8 chars over 95 printable ASCII ≈ 95<sup>8</sup> ≈ 6.6&nbsp;·&nbsp;10<sup>15</sup> hashes. Storing every pair is infeasible, rainbow tables store only chain endpoints</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · chains -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">1 · Rainbow tables</p>
+    <h2>Chains &amp; the reduction function R</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl endpoint">p0</span><span class="op h">-H→</span><span class="hashnode">h0</span><span class="op r">-R→</span><span class="pl">p1</span><span class="op h">-H→</span><span class="hashnode">h1</span><span class="op r">-R→</span><span class="pl">…</span>
+        <span class="op h">-H→</span><span class="hashnode">hn-1</span><span class="op r">-R→</span><span class="pl endpoint">pn</span>
+      </div>
+      <p class="p">Start from a plaintext (<code>aaaaaa</code>), hash it, then <b>R</b> deterministically folds each hash back into a new "password". Chain length e.g. 1000 - the table keeps <b>only p0 and pn</b>, so gigabytes shrink to megabytes.</p>
+    </div>
+  </section>
+
+  <!-- 6 · lookup -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">1 · Rainbow tables</p>
+    <h2>Lookup: walk the chain</h2>
+    <div class="inner">
+      <div class="steps">
+        <div class="step"><span class="n">01</span><div>From target hash h, apply <span class="hash">R → H → R → …</span> up to chain length, hoping to hit a stored endpoint <span class="hash">pn</span>.</div></div>
+        <div class="step"><span class="n">02</span><div>Endpoint match → restart from its start <span class="hash">p0</span> and rebuild the whole chain.</div></div>
+        <div class="step"><span class="n">03</span><div>Every hash checked along the way; where <span class="hash">h = H(pi)</span> - recovered, that's the password.</div></div>
+      </div>
+      <p class="p">Tables use <b>several different R functions</b> to limit chain merging. Limits: one table per hash algorithm, per character set and length, plusGlobal random value <b>none of it works on salted hashes</b>.</p>
+    </div>
+  </section>
+
+  <!-- 7 · attacks -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">2 · Attacks</p>
+    <h2>What this buys the attacker</h2>
+    <div class="inner">
+      <div class="cards three">
+        <div class="card attack"><b>Password theft</b><span>Steal DB → lookup each unsalted hash → plaintext in seconds. Works on reused passwords in mail, VPN, anything.</span></div>
+        <div class="card attack"><b>Signature forgery</b><span>Chosen-prefix collision: get benign m1 signed, swap in malicious m2. MD5 rogue CA (2008), SHA-1 SHAttered (2017).</span></div>
+        <div class="card attack"><b>Integrity bypass</b><span>Tampered file still passes an MD5 checksum comparison - e.g. in software update distribution.</span></div>
+      </div>
+      <p class="p">Bonus without any cracking: two users with the same unsalted hash <b>visibly share a password</b>.</p>
+    </div>
+  </section>
+
+  <!-- 8 · salting -->
+  <section class="slide" id="s8">
+    <p class="eyebrow">3 · Defense</p>
+    <h2>Salting - precomputation dies</h2>
+    <div class="inner">
+      <p class="math">stored = H(salt <small>‖</small> password)</p>
+      <div class="cards list">
+        <div class="card"><b>Salt</b><span>Random, per-password, e.g. 16 bytes, stored <b>in plaintext</b> next to the hash. Not secret - uniqueness is its entire job.</span></div>
+        <div class="card"><b>Effect</b><span>No duplicate hashes across users. A rainbow table per salt value per user destroys the storage advantage. Cracking falls back to guessing one hash at a time, at full cost each.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · peppering -->
+  <section class="slide" id="s9">
+    <p class="eyebrow">3 · Defense</p>
+    <h2>Peppering - the secret that's not in the DB</h2>
+    <div class="inner">
+      <p class="math">stored = HMAC-SHA256<span class="op">(</span>key = pepper<span class="op">,</span> salt ‖ password<span class="op">)</span></p>
+      <div class="cards list">
+        <div class="card"><b>Pepper</b><span>Global random value, <b>secret</b>, stored outside the database - env var, vault, HSM. If the attacker takes the DB alone (SQL injection, dump), guessing is <b>impossible</b>, not just slow.</span></div>
+        <div class="card"><b>Trade-off</b><span>Must be managed; if lost, all passwords are unrecoverable</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · live demo -->
+  <section class="slide" id="s10">
+    <p class="eyebrow">Live demo</p>
+    <h2>Same password, salted vs. unsalted</h2>
+    <div class="demo">
+      <div class="field">
+        <label for="pwInput">Password</label>
+        <input type="text" id="pwInput" value="CorrectHorse1!" spellcheck="false" autocomplete="off">
+        <label for="saltInput">Salt</label>
+        <input type="text" id="saltInput" value="e7f2c9a4d1" spellcheck="false" autocomplete="off">
+        <button class="btn" id="hashBtn" type="button">Hash</button>
+      </div>
+      <div class="row"><span class="tag">plain</span> <span class="out" id="plainOut">-</span></div>
+      <div class="row salt"><span class="tag">salted</span> <span class="out" id="saltOut">-</span></div>
+      <div class="note" id="demoNote">Change the salt slightly - the salted hash changes completely, the plain one never does.</div>
+    </div>
+    <p class="p" style="max-width:56ch">Demo hashes SHA-256 straight in your browser. Production practice: <b>Argon2id</b>, scrypt or bcrypt - slow, memory-hard, salted by design.</p>
+  </section>
+
+  <!-- 11 · summary -->
+  <section class="slide" id="s11">
+    <p class="eyebrow">Summary</p>
+    <h2>One table, four rules</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Measure</th><th>Protects against</th><th>Secret?</th><th>Stored</th></tr>
+        <tr><td>Collision-resistant hash</td><td>Signature / integrity forgery</td><td>-</td><td>-</td></tr>
+        <tr><td>Salt (per-password)</td><td>Rainbow tables, leak patterns</td><td>No</td><td>Next to hash</td></tr>
+        <tr><td>Pepper (global)</td><td>DB-only leaks</td><td><span class="yes">Yes</span></td><td>Outside DB</td></tr>
+        <tr><td>Argon2id / scrypt</td><td>Offline brute force</td><td>-</td><td>-</td></tr>
+      </table>
+    </div>
+    <div class="inner"><span class="verdict bad">Never plain MD5 / SHA-256 for passwords</span> <span class="verdict">Always Argon2id(password, salt [, pepper])</span></div>
+  </section>
+</div>
+
+<nav class="dots" id="dots" aria-label="Slide navigation"></nav>
+<div class="ctrl">
+  <button id="prevBtn" type="button">← Prev</button>
+  <button id="nextBtn" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsEl = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var cur = 0;
+
+  slides.forEach(function (s, i) {
+    var d = document.createElement('button');
+    d.className = 'dot'; d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (i + 1));
+    d.addEventListener('click', function () { go(i); });
+    dotsEl.appendChild(d);
+  });
+  var dots = dotsEl.children;
+
+  function go(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, j) {
+      s.classList.toggle('active', j === cur);
+      if (j === cur) s.scrollTop = 0;
+      dots[j].classList.toggle('active', j === cur);
+    });
+    pgnum.textContent = (cur + 1) + ' / ' + slides.length;
+    if (cur === 9) runDemo(); // slide 10 - populate demo before first paint
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
+  document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(cur + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  });
+
+  // live demo - SHA-256 via Web Crypto, straight in the browser
+  function hex(buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+      return ('0' + b.toString(16)).slice(-2);
+    }).join('');
+  }
+  function sha(s) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  }
+  function runDemo() {
+    var pw = document.getElementById('pwInput').value;
+    var salt = document.getElementById('saltInput').value;
+    sha(pw).then(function (h) {
+      document.getElementById('plainOut').textContent = hex(h).slice(0, 24) + '…';
+      return sha(salt + '|' + pw);
+    }).then(function (h) {
+      document.getElementById('saltOut').textContent = hex(h).slice(0, 24) + '…';
+    });
+  }
+  document.getElementById('hashBtn').addEventListener('click', runDemo);
+  document.getElementById('pwInput').addEventListener('input', runDemo);
+  document.getElementById('saltInput').addEventListener('input', runDemo);
+
+  go(0);
+})();
+</script>
