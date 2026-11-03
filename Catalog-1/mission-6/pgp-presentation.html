@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PGP: Pretty Good Privacy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-5/rsa-encryption-presentation.html
+   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, fixed dots + arrows
+   Color: lab-dark navy on surface; teal = secure/OK, red = attack
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (keys/ciphertexts/math) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --bad-ink: #2A0A0A;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; margin: 0 auto; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code, .math, .hash { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+.math { font-size: clamp(1.05rem, 3vw, 1.5rem); }
+.math small { color: var(--muted); font-size: .62em; }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 720px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.attack { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+/* chain diagram */
+.chain { font-family: var(--mono); font-size: clamp(.78rem, 2.6vw, 1rem); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 14px; max-width: 780px; margin: 0 auto; width: 100%; }
+.chain .pl { color: var(--accent); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .hashnode { color: var(--fg); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .op { color: var(--muted); }
+.chain .op.h { color: var(--accent); }
+.chain .red { color: var(--bad); }
+
+/* live demo */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 680px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 12px; }
+.demo .field { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.demo label { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.demo input[type=text] { flex: 1 1 200px; min-width: 0; background: var(--surface-2); border: 1px solid var(--edge); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: .9rem; }
+.demo input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.demo .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; }
+.demo .btn.btnBad { background: var(--bad); color: var(--bad-ink); }
+.demo .row { font-family: var(--mono); font-size: .78rem; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.demo .row .tag { display: inline-block; color: var(--accent-ink); background: var(--accent); border-radius: 5px; padding: 0 6px; font-size: .68rem; }
+.demo .row.xor .tag, .demo .row.bad .tag { background: var(--bad); color: var(--bad-ink); }
+.demo .out { color: var(--muted); }
+.demo .out.ok { color: var(--accent); }
+.demo .out.err { color: var(--bad); font-weight: 700; }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+/* summary table */
+.tablewrap { overflow-x: auto; max-width: 720px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+/* verdict pill */
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: var(--bad-ink); }
+
+/* controls */
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-6 · Pretty Good Privacy</p>
+      <h1>PGP: Encrypt for Anyone</h1>
+      <p class="p">One hybrid scheme for confidentiality <b>and</b> authenticity without infrastructure: what PGP is, how it combines both cipher worlds, and where it is used every day.</p>
+    </div>
+  </section>
+
+  <!-- 2 · what is PGP -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">What is it?</p>
+    <h2>Not a cipher: a packaging of ciphers</h2>
+    <div class="inner">
+      <div class="cards three">
+        <div class="card"><b>1991 · Phil Zimmermann</b><span>E-mail encryption should be possible for everyone, not just companies. PGP is a program and a format.</span></div>
+        <div class="card"><b>OpenPGP · RFC 4880</b><span>The format lives on as an open standard: keys, signatures and ciphertext have a defined wire format.</span></div>
+        <div class="card"><b>GNU Privacy Guard</b><span>GnuPG (GPG) is the widely used open-source implementation: in practice "PGP" and "GPG" mean the same thing.</span></div>
+      </div>
+      <p class="p">PGP answers <b>symmetric or asymmetric?</b> with: <b>both, combined deliberately</b> — a <b>hybrid</b> scheme. Each cipher does the job it is fastest at.</p>
+    </div>
+  </section>
+
+  <!-- 3 · hybrid how it works -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">How it works</p>
+    <h2>Hybrid encryption: fast cipher, small RSA</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">message</span><span class="op h">→</span><span class="hashnode">AES session key (random)</span><span class="op h">→</span><span class="pl">ciphertext</span>
+        <span class="op">+</span><span class="hashnode">session key → RSA with public key</span><span class="op h">→</span><span class="pl">encrypted key</span>
+      </div>
+      <p class="p">1. The (large) message is encrypted with a fresh random <b>session key</b> using fast symmetric AES.<br>
+      2. Only that small key is encrypted with the recipient's <b>public key</b>.<br>
+      3. Decryption: the <b>private key</b> unlocks the session key, the session key unlocks the message.</p>
+      <div class="cards">
+        <div class="card good"><b>Why this is the sweet spot</b><span>RSA alone can't bulk-encrypt and is slow; AES alone can't be sent to a stranger. One small RSA operation per message plus AES for all the data: <b>fast and keyless to distribute</b>.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · signatures + web of trust -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Authenticity</p>
+    <h2>Signatures and the web of trust</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">hash (SHA-256)</span><span class="op h">→</span><span class="hashnode">sign: private key</span><span class="op h">→</span><span class="pl">signature</span><span class="op h">→</span><span class="hashnode">verify: public key</span><span class="op h">→</span><span class="pl">valid?</span>
+      </div>
+      <p class="p">A signature binds the message to the <b>private key holder</b>: anyone can verify integrity and authorship, nobody can forge it without <code>d</code>. Encrypt and sign combine freely.</p>
+      <div class="cards two">
+        <div class="card good"><b>Web of trust</b><span>No certificate authority: users <b>sign each other's public keys</b>. Trust in the friend who verified Alice extends partially to Alice's key.</span></div>
+        <div class="card"><b>Today's practice</b><span>Most people verify a key <b>fingerprint</b> once, directly (in person, video call) instead of building trust chains.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · symmetric vs PGP -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Comparison</p>
+    <h2>Symmetric vs. PGP</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th></th><th>Symmetric (AES)</th><th>PGP / hybrid</th></tr>
+        <tr><td>Keys</td><td>One shared secret</td><td>Key pair: public + private per person</td></tr>
+        <tr><td>Key exchange</td><td><span class="no">Hard:</span> confidential channel needed first</td><td><span class="yes">Easy:</span> public key shared openly</td></tr>
+        <tr><td>Speed</td><td><span class="yes">Very fast</span>, any size</td><td>Slower per op, but only the session key is RSA</td></tr>
+        <tr><td>Scalability</td><td>n people → n·(n−1)/2 pair keys</td><td>n people → n key pairs</td></tr>
+        <tr><td>Applied to</td><td>Channels: disk, VPN, TLS bulk, Wi-Fi</td><td>Objects between identified persons: mail, files</td></tr>
+        <tr><td>Identity / integrity</td><td><span class="no">None by itself</span></td><td><span class="yes">Built in</span>: every message can be signed</td></tr>
+        <tr><td>Trust model</td><td>Pre-shared secret or PKI/CA</td><td>Web of trust, fingerprint check, no CA</td></tr>
+      </table>
+    </div>
+    <p class="p"><b>Pattern:</b> symmetric = both sides already share a secret context. PGP = <b>strangers who have never arranged anything</b> can still communicate securely.</p>
+  </section>
+
+  <!-- 6 · use cases -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">Typical use</p>
+    <h2>Where PGP runs today</h2>
+    <div class="inner">
+      <div class="cards three">
+        <div class="card good"><b>E-mail encryption</b><span>End-to-end encrypted e-mail (Thunderbird): even the provider cannot read it.</span></div>
+        <div class="card good"><b>Signed e-mail</b><span>Proves a message really comes from the sender: defense against phishing.</span></div>
+        <div class="card"><b>File exchange</b><span>Encrypt archives sent to partners, lawyers, journalists.</span></div>
+        <div class="card"><b>Software signing</b><span>Releases, installers, git commits: users verify authenticity.</span></div>
+        <div class="card"><b>Secrets & backups</b><span>Password managers, LUKS recovery data, encrypted backups.</span></div>
+        <div class="card"><b>Whistleblowing</b><span>SecureDrop: journalists publish keys so sources can encrypt to them anonymously.</span></div>
+      </div>
+      <p class="p"><span class="verdict">Wins in practice</span>&nbsp; solves key distribution, works end-to-end with no infrastructure, confidentiality + authenticity + integrity in one scheme, one key pair per person, open standard.</p>
+    </div>
+  </section>
+
+  <!-- 7 · live demo -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">Live demo</p>
+    <h2>Hybrid PGP in your browser</h2>
+    <div class="demo">
+      <div class="field">
+        <label for="msgInput">Message</label>
+        <input type="text" id="msgInput" value="Meet at 18:00, bring the report" spellcheck="false" autocomplete="off">
+        <button class="btn" id="sendBtn" type="button">Sign &amp; encrypt</button>
+      </div>
+      <div class="row"><span class="tag">keys</span> <span class="out" id="keyOut">-</span></div>
+      <div class="row"><span class="tag">ses-key</span> <span class="out" id="skOut">-</span></div>
+      <div class="row"><span class="tag">ct</span> <span class="out" id="ctOut">-</span></div>
+      <div class="row"><span class="tag">dec+verify</span> <span class="out" id="okOut">-</span></div>
+      <div class="field">
+        <button class="btn btnBad" id="tampBtn" type="button">Attacker flips 1 bit</button>
+      </div>
+      <div class="row bad"><span class="tag">tampered</span> <span class="out" id="badOut">-</span></div>
+      <p class="note">Real WebCrypto: an RSA-OAEP key pair (like a PGP key pair), a fresh AES-GCM session key per message, RSA-PSS signature. Exactly the PGP recipe: hybrid + signature.</p>
+    </div>
+  </section>
+
+  <!-- 8 · demo script + takeaway -->
+  <section class="slide" id="s8">
+    <div class="inner">
+      <p class="eyebrow">In the repo · Summary</p>
+      <h2>PGP in six commands</h2>
+      <div class="chain">
+        <span class="hashnode">pgp_demo.py</span><span class="op h">→</span><span class="pl">keygen</span><span class="op h">→</span><span class="pl">sign</span><span class="op h">→</span><span class="pl">encrypt</span><span class="op h">→</span><span class="pl">decrypt</span><span class="op h">→</span><span class="pl">verify</span><span class="op h">→</span><span class="hashnode">tamper = rejected</span>
+      </div>
+      <p class="p"><b>Takeaway:</b> PGP is <b>symmetric + asymmetric in one</b> — AES for the data, RSA for the key. That hybrid gets you fast encryption <b>and</b> the key distribution problem solved: you can encrypt for someone you have never met, and sign so they know it was you.</p>
+      <p class="p"><code>python pgp_demo.py</code> · details in <code>pgp-encryption.md</code></p>
+    </div>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="ctrl">
+  <button id="prev" type="button">←</button>
+  <button id="next" type="button">→</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+/* ---- navigation ---- */
+const slides = [...document.querySelectorAll('.slide')];
+const dotsBox = document.getElementById('dots');
+let cur = 0;
+
+slides.forEach((_, i) => {
+  const d = document.createElement('button');
+  d.className = 'dot';
+  d.setAttribute('aria-label', 'Slide ' + (i + 1));
+  d.addEventListener('click', () => go(i));
+  dotsBox.appendChild(d);
+});
+const dots = [...dotsBox.children];
+
+function go(n) {
+  cur = Math.max(0, Math.min(slides.length - 1, n));
+  slides.forEach((s, i) => s.classList.toggle('active', i === cur));
+  dots.forEach((d, i) => d.classList.toggle('active', i === cur));
+  document.getElementById('pgnum').textContent = (cur + 1) + ' / ' + slides.length;
+}
+document.getElementById('prev').addEventListener('click', () => go(cur - 1));
+document.getElementById('next').addEventListener('click', () => go(cur + 1));
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') go(cur + 1);
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(cur - 1);
+  if (e.key === 'Home') go(0);
+  if (e.key === 'End') go(slides.length - 1);
+});
+go(0);
+
+/* ---- hybrid PGP demo (real WebCrypto) ----
+   1. Alice generates an RSA key pair (her "PGP key pair")
+   2. per message: fresh AES-GCM session key -> encrypts the message
+   3. session key is encrypted with Bob's view? No: sender = Alice encrypts to HER public pair for demo clarity
+      (one key pair in the demo: recipient == owner of private key)
+   4. Alice signs (RSA-PSS) over the ciphertext -> sign & encrypt
+   5. private key decrypts session key -> AES decrypts message -> signature verified
+   6. tampering 1 bit of ciphertext -> decrypt/GCM auth fails or signature fails */
+const $ = id => document.getElementById(id);
+let keys = null, last = null;
+
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const hex = buf => [...new Uint8Array(buf)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('') + '…';
+
+(async () => {
+  const pair = await crypto.subtle.generateKey(
+    { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true, ['encrypt', 'decrypt']);
+  const signKey = await crypto.subtle.generateKey(
+    { name: 'RSA-PSS', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true, ['sign', 'verify']);
+  keys = { enc: pair, sig: signKey };
+  const spki = await crypto.subtle.exportKey('spki', pair.publicKey);
+  const fpr = hex(await crypto.subtle.digest('SHA-256', spki));
+  $('keyOut').innerHTML = '<span class="ok">RSA-2048 encryption pair + RSA-2048 signing pair</span> (fpr ' + fpr + ')';
+})().catch(() => $('keyOut').textContent = 'keygen failed');
+
+$('sendBtn').addEventListener('click', async () => {
+  if (!keys) return;
+  const msg = new TextEncoder().encode($('msgInput').value);
+  try {
+    // hybrid: fresh session key, AES-GCM for the data
+    const sk = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, sk, msg);
+    const rawSk = await crypto.subtle.exportKey('raw', sk);
+    // wrap the session key with the RSA public key (same recipe as OpenPGP)
+    const wrappedSk = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, keys.enc.publicKey, rawSk);
+    // sign the ciphertext (sign & encrypt like OpenPGP)
+    const sig = await crypto.subtle.sign({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.privateKey, ct);
+
+    last = { ct, iv, wrappedSk, sig };
+    $('skOut').textContent = 'AES-256 session key, wrapped by RSA-OAEP (' + wrappedSk.byteLength + ' bytes)';
+    $('ctOut').textContent = hex(iv) + '^' + hex(ct);
+    $('skOut').className = $('ctOut').className = 'out ok';
+
+    // decrypt + verify
+    const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keys.enc.privateKey, wrappedSk));
+    const sk2 = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['decrypt']);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, sk2, ct);
+    const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, sig, ct);
+    $('okOut').innerHTML = valid
+      ? '<span class="ok">✓ signature valid, sender: Alice — "' + new TextDecoder().decode(pt) + '"</span>'
+      : '<span class="err">signature invalid</span>';
+    $('okOut').className = valid ? 'out ok' : 'out err';
+  } catch (e) { $('okOut').textContent = 'error: ' + e.message; }
+});
+
+$('tampBtn').addEventListener('click', async () => {
+  if (!last) return;
+  const tampered = new Uint8Array(last.ct);
+  tampered[10] ^= 0x01;                       // flip one bit
+  try {
+    const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keys.enc.privateKey, last.wrappedSk));
+    const sk2 = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['decrypt']);
+    await crypto.subtle.decrypt({ name: 'AES-GCM', iv: last.iv }, sk2, tampered);
+    $('badOut').textContent = 'decrypted — but signature check will fail';
+    $('badOut').className = 'out';
+  } catch {
+    $('badOut').innerHTML = '<span class="err">✗ rejected: GCM authentication failed — tampering detected</span>';
+  }
+  const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, last.sig, tampered);
+  if (!valid && !$('badOut').className.includes('err'))
+    $('badOut').innerHTML = '<span class="err">✗ signature invalid — tampering detected</span>';
+});
+</script>
+</body>
+</html>

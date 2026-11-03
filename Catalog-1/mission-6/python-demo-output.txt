@@ -1,0 +1,60 @@
+﻿gpg binary: C:\Program Files\Git\usr\bin\gpg.exe
+
+==================================================
+ 1. Generate key pair (RSA-2048, no passphrase)
+==================================================
+Fingerprint: 396175AC41E00DFF501F3C18F3F212D82C939682
+
+==================================================
+ 2. Sign a message (authenticity + integrity)
+==================================================
+--- signed message (armored): ---
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Hello from Alice - this message is signed, not encrypted.
+-----BEGIN PGP SIGNATURE-----
+
+iQFGBAEBCAAwFiEEOWF1rEHgDf9QHzwY8/IS2CyTloIFAmrqC1ESHGFsaWNlQGV4
+YW1wbGUuY29tAAoJEPPyEtgsk5aCUHUH/i4fPuDWjmj7KCnAtb1I6ihqmf5zm5LX
+EtZRTceBwzDOw++IjG7508XnI9JhT1WrTUc3d9nAgAsY2Io8lGzUwUWWrxstP3en
+77GMtS39GZ1fhQc7WzJMK5EpI1YaHdpew6JSAQYxJ0weTSzfTOv6YQ+uHp9+3XE2
+QfhZiZGBFHh+bAuH/mzKDnVdrvbY8B/UGSke25ezF7zTT/7OAfVD3eN8+mJ1iNMq
+mHPayYWj8cmAq8NROScRybS7BOJFJ3NC1qIaBhfGPj4pM4nePFrzkYeAUQsYDopL
+oTA2vAc5jBl1iWBxGBfi6af0htyHi6u990PwKBq6W7b6XLX8N5dQVhQ=
+=yjHH
+-----END PGP SIGNATURE-----
+
+
+==================================================
+ 3. Encrypt a message for Alice (confidentiality)
+==================================================
+    -> uses her PUBLIC key; session key is AES (hybrid)
+plaintext length : 25 chars
+ciphertext length: 561 chars
+--- ciphertext, first lines: ---
+-----BEGIN PGP MESSAGE-----
+
+hQEMA/PyEtgsk5aCAQf/dscA6MDzAn1czoSsvb8GGOXeXNsjBbqCIR1s4u8wUHLu
+...
+
+==================================================
+ 4. Decrypt (Alice uses her PRIVATE key)
+==================================================
+decrypted: 'Top secret meeting notes.'  ok=True
+
+==================================================
+ 5. Sign AND encrypt in one step
+==================================================
+decrypted: 'Top secret meeting notes.'
+signature valid: True  signed by: Alice <alice@example.com>
+
+==================================================
+ 6. Verify a signature - and detect tampering
+==================================================
+original  -> valid=True, signer=Alice <alice@example.com>
+tampered  -> valid=False  (must be False)
+
+==================================================
+ Demo complete
+==================================================
