@@ -1,0 +1,12 @@
+8. TLS (Transport Layer Security)
+Erklären Sie die Funktionen und den Nutzen von TLS.
+Integrieren Sie TLS in eine Beispielanwendung und erstellen Sie dazu ein kleines Codebeispiel.
+Verwenden Sie für die TLS-Integration das in Aufgabe 7 erstellte Zertifikat.
+Beschreiben Sie die Anforderungen und die einzelnen Schritte zur Implementierung.
+
+English version:
+8. TLS (Transport Layer Security)
+Explain the functions and benefits of TLS.
+Integrate TLS into a sample application and create a small code example for it.
+Use the certificate created in Mission-7 for the TLS integration.
+Describe the requirements and the individual steps for the implementation.
