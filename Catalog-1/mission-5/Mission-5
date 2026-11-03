@@ -1,0 +1,11 @@
+5. Asymmetrische Verschlüsselung
+Wählen Sie einen aktuellen asymmetrischen Verschlüsselungsalgorithmus und entwickeln Sie ein Codebeispiel zur Verschlüsselung und Entschlüsselung einer Nachricht.
+Erklären Sie die Funktionsweise des Algorithmus und potenzielle Angriffsmethoden.
+Vergleichen Sie dieses Verfahren mit der symmetrischen Verschlüsselung und beleuchten Sie die Unterschiede in der Anwendung.
+
+English version:
+5. Asymmetric Encryption
+
+Choose a current asymmetric encryption algorithm and develop a code example for encrypting and decrypting a message. (RSA)
+Explain how the algorithm works and potential attack methods.
+Compare this method with symmetric encryption and highlight the differences in how they are applied.

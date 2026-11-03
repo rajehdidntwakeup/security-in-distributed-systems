@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Asymmetric Encryption: RSA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-4/aes-gcm-presentation.html
+   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, fixed dots + arrows
+   Color: lab-dark navy on surface; cyan = secure/OK, red = attack
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (keys/ciphertexts/math) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --bad-ink: #2A0A0A;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; margin: 0 auto; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code, .math, .hash { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+.math { font-size: clamp(1.05rem, 3vw, 1.5rem); }
+.math small { color: var(--muted); font-size: .62em; }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 720px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.attack { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+/* chain diagram */
+.chain { font-family: var(--mono); font-size: clamp(.78rem, 2.6vw, 1rem); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 14px; max-width: 780px; margin: 0 auto; width: 100%; }
+.chain .pl { color: var(--accent); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .hashnode { color: var(--fg); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .op { color: var(--muted); }
+.chain .op.h { color: var(--accent); }
+.chain .red { color: var(--bad); }
+
+/* live demo */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 680px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 12px; }
+.demo .field { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.demo label { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.demo input[type=text] { flex: 1 1 200px; min-width: 0; background: var(--surface-2); border: 1px solid var(--edge); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: .9rem; }
+.demo input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.demo .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; }
+.demo .btn.btnBad { background: var(--bad); color: var(--bad-ink); }
+.demo .row { font-family: var(--mono); font-size: .78rem; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.demo .row .tag { display: inline-block; color: var(--accent-ink); background: var(--accent); border-radius: 5px; padding: 0 6px; font-size: .68rem; }
+.demo .row.xor .tag, .demo .row.fresh .tag, .demo .row.bad .tag { background: var(--bad); color: var(--bad-ink); }
+.demo .out { color: var(--muted); }
+.demo .out.ok { color: var(--accent); }
+.demo .out.err { color: var(--bad); font-weight: 700; }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+/* summary table */
+.tablewrap { overflow-x: auto; max-width: 720px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+/* verdict pill */
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: var(--bad-ink); }
+
+/* controls */
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-5 · Asymmetric Encryption</p>
+      <h1>RSA: One Lock, Two Keys</h1>
+      <p class="p">How a key pair distributes trust openly, what the factoring problem protects, and which attacks padding exists to stop. Runs alongside AES (Mission-4) in every real system.</p>
+    </div>
+  </section>
+
+  <!-- 2 · principle -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">Principle</p>
+    <h2>Encrypt with one, decrypt with the other</h2>
+    <div class="inner">
+      <div class="cards two">
+        <div class="card good"><b>Public key (n, e)</b><span>Freely shareable. <b>Anyone</b> can encrypt a message to the owner, or verify their signature.</span></div>
+        <div class="card good"><b>Private key (n, d)</b><span>The only thing that can decrypt or sign. No secure channel is needed to distribute the public part: the <b>key distribution problem</b> is solved.</span></div>
+      </div>
+      <p class="p">Security rests on the <b>factoring problem</b>: computing <code>n = p·q</code> from two large primes is instant, recovering <code>p</code> and <code>q</code> from <code>n</code> is practically impossible. RSA = Rivest, Shamir, Adleman, 1977.</p>
+    </div>
+  </section>
+
+  <!-- 3 · how it works -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">The algorithm</p>
+    <h2>Exponentiation mod n</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">p · q</span><span class="op h">→</span><span class="hashnode">n = p·q</span><span class="op">,</span><span class="hashnode">φ(n) = (p−1)(q−1)</span><span class="op h">→</span><span class="hashnode">e = 65537</span><span class="op h">→</span><span class="pl">d = e⁻¹ mod φ(n)</span>
+      </div>
+      <p class="math">c = m<sup>e</sup> mod n&nbsp;&nbsp;&nbsp;m = c<sup>d</sup> mod n</p>
+      <p class="p">Because <code>e·d ≡ 1 (mod φ(n))</code>, decryption undoes encryption: <code>m^(ed) ≡ m (mod n)</code>. Without <code>d</code>, reversing means factoring <code>n</code>. Keys: <b>RSA-2048</b> minimum, 3072+ for long-term secrets.</p>
+    </div>
+  </section>
+
+  <!-- 4 · padding -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Padding</p>
+    <h2>Never raw RSA, always OAEP</h2>
+    <div class="inner">
+      <div class="cards two">
+        <div class="card attack"><b>Textbook RSA fails</b><span>Deterministic (same message, same ciphertext) and <b>malleable</b>: <code>c'=c·r² mod n</code> decrypts to <code>m·r²</code>. An attacker can multiply messages without knowing them.</span></div>
+        <div class="card good"><b>OAEP fixes it</b><span>Injects randomness (every encryption differs) and resists chosen-ciphertext attacks. Standard: RFC 8017. For signing, the same pair runs in reverse with <b>PSS</b>: sign with <b>d</b>, verify with <b>e</b>.</span></div>
+      </div>
+      <p class="p">Raw RSA survives only inside textbooks and exam questions. Real code: <code>padding.OAEP(...)</code> or nothing.</p>
+    </div>
+  </section>
+
+  <!-- 5 · attacks -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">Attacks</p>
+    <h2>What actually breaks RSA</h2>
+    <div class="inner">
+      <div class="cards two">
+        <div class="card attack"><b>Factoring</b><span>Recover <code>p, q</code> from <code>n</code>. RSA-768 fell in 2009 after months of computing. Defense: ≥ 2048 bit, fresh primes from a secure RNG (shared <code>p</code> = instant GCD break).</span></div>
+        <div class="card attack"><b>Padding oracles</b><span>Bleichenbacher/ROBOT: a server that reports padding errors leaks enough to decrypt adaptive-ciphertext style. Defense: OAEP + constant error handling.</span></div>
+        <div class="card attack"><b>Textbook misuse</b><span>Small messages, no padding: <code>m³ &lt; n</code> → just take the cube root. One message to many recipients → Håstad broadcast attack. Tiny <code>d</code> → Wiener recovers it.</span></div>
+        <div class="card attack"><b>MITM and quantum</b><span>RSA does not authenticate by itself: swap the public key in transit, decrypt everything (fix: certificates). A working quantum computer runs Shor's algorithm → factor <code>n</code> fast. Migration: PQC (ML-KEM).</span></div>
+      </div>
+      <p class="p">Brute force is not how RSA falls; <b>implementation and usage mistakes</b> are.</p>
+    </div>
+  </section>
+
+  <!-- 6 · live demo -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">Live demo</p>
+    <h2>RSA-OAEP in your browser</h2>
+    <div class="demo">
+      <div class="field">
+        <label for="msgInput">Plaintext</label>
+        <input type="text" id="msgInput" value="Attack at dawn on bridge #42" spellcheck="false" autocomplete="off">
+        <button class="btn" id="encBtn" type="button">Encrypt</button>
+      </div>
+      <div class="row"><span class="tag">keygen</span> <span class="out" id="keyOut">-</span></div>
+      <div class="row"><span class="tag">ct</span> <span class="out" id="ctOut">-</span></div>
+      <div class="row fresh"><span class="tag">ct again</span> <span class="out" id="againOut">-</span></div>
+      <div class="row"><span class="tag">dec</span> <span class="out" id="decOut">-</span></div>
+      <div class="field">
+        <button class="btn btnBad" id="againBtn" type="button">Encrypt same msg again</button>
+        <button class="btn btnBad" id="tampBtn" type="button">Flip 1 bit</button>
+      </div>
+      <div class="note" id="demoNote">Web Crypto generates a real RSA-2048 key pair right here. Encrypt: ciphertext is exactly 256 bytes. Encrypt twice: different ciphertexts, same plaintext, OAEP randomness. Flip 1 bit: decryption fails loudly.</div>
+    </div>
+  </section>
+
+  <!-- 7 · vs symmetric + takeaway -->
+  <section class="slide" id="s8">
+    <p class="eyebrow">Asymmetric vs. symmetric</p>
+    <h2>Different tools, one pipeline</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th></th><th>Asymmetric (RSA-OAEP)</th><th>Symmetric (AES-256-GCM)</th></tr>
+        <tr><td>Keys</td><td>Key pair (public + private)</td><td>One shared secret</td></tr>
+        <tr><td>Key distribution</td><td><span class="yes">Easy</span>: done in the open</td><td><span class="no">Hard</span>: needs secret channel</td></tr>
+        <tr><td>Speed</td><td>1000–10000× slower</td><td><span class="yes">GB/s</span>, hardware-accelerated</td></tr>
+        <tr><td>Bulk data</td><td><span class="no">No</span>: 214 bytes per block</td><td><span class="yes">Yes</span>: arbitrary length</td></tr>
+        <tr><td>Integrity</td><td>Tag via PSS signature</td><td>Built-in 128-bit GCM tag</td></tr>
+      </table>
+    </div>
+    <div class="inner">
+      <p class="p">Real systems are <b>hybrid</b> (TLS, PGP, Signal): RSA encrypts a fresh AES session key, AES-GCM (Mission-4) encrypts the data. RSA says <em>who</em> and carries <em>the key</em>, AES moves <em>the data</em>.</p>
+      <span class="verdict bad">Never raw RSA, never textbook padding</span>
+      <span class="verdict">RSA-2048 + OAEP: keys in the open, trust from factoring</span>
+    </div>
+  </section>
+</div>
+
+<nav class="dots" id="dots" aria-label="Slide navigation"></nav>
+<div class="ctrl">
+  <button id="prevBtn" type="button">← Prev</button>
+  <button id="nextBtn" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsEl = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var cur = 0;
+
+  slides.forEach(function (s, i) {
+    var d = document.createElement('button');
+    d.className = 'dot'; d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (i + 1));
+    d.addEventListener('click', function () { go(i); });
+    dotsEl.appendChild(d);
+  });
+  var dots = dotsEl.children;
+
+  function go(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, j) {
+      s.classList.toggle('active', j === cur);
+      if (j === cur) s.scrollTop = 0;
+      dots[j].classList.toggle('active', j === cur);
+    });
+    pgnum.textContent = (cur + 1) + ' / ' + slides.length;
+    if (cur === 5) initDemo(); // slide 6 - live demo
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
+  document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(cur + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  });
+
+  /* ---- live demo: real RSA-2048-OAEP via Web Crypto ---- */
+  var hexBuf = function (buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+      return ('0' + b.toString(16)).slice(-2);
+    }).join('');
+  };
+
+  var pub = null, priv = null, ct = null, demoReady = false;
+
+  function set(id, text, cls) {
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'out' + (cls ? ' ' + cls : '');
+  }
+
+  function oaep() {
+    return { name: 'RSA-OAEP' };
+  }
+
+  function initDemo() {
+    if (demoReady) return;
+    demoReady = true;
+    var alg = {
+      name: 'RSA-OAEP',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256'
+    };
+    crypto.subtle.generateKey(alg, true, ['encrypt', 'decrypt'])
+      .then(function (kp) {
+        pub = kp.publicKey; priv = kp.privateKey;
+        set('keyOut', 'RSA-2048 key pair generated: public (n, e), private (n, d)');
+        encrypt1();
+      })
+      .catch(function () { set('keyOut', 'Web Crypto RSA unavailable in this browser', 'err'); });
+    document.getElementById('encBtn').addEventListener('click', encrypt1);
+    document.getElementById('againBtn').addEventListener('click', encryptAgain);
+    document.getElementById('tampBtn').addEventListener('click', tamper);
+  }
+
+  function encryptWith(text) {
+    return crypto.subtle.encrypt(oaep(), pub, new TextEncoder().encode(text));
+  }
+
+  function decrypt(bytes) {
+    return crypto.subtle.decrypt(oaep(), priv, bytes)
+      .then(function () { return 'ok'; })
+      .catch(function () { return 'err'; });
+  }
+
+  function encrypt1() {
+    if (!pub) return;
+    var pt = document.getElementById('msgInput').value || '(empty)';
+    encryptWith(pt).then(function (c) {
+      ct = new Uint8Array(c);
+      set('ctOut', ct.length + ' bytes: ' + hexBuf(ct).slice(0, 32) + '…');
+      set('againOut', '-'); set('decOut', '-');
+      document.getElementById('demoNote').textContent = 'Exactly 256 bytes out, arbitrarily few bytes in: the block limit. Now press "Encrypt same msg again".';
+      decrypt(ct).then(function (r) {
+        if (r === 'ok') set('decOut', 'private key decrypts → ' + pt, 'ok');
+      });
+    });
+  }
+
+  function encryptAgain() {
+    if (!ct) return;
+    var pt = document.getElementById('msgInput').value || '(empty)';
+    encryptWith(pt).then(function (c) {
+      var c2 = new Uint8Array(c);
+      var same = hexBuf(ct) === hexBuf(c2);
+      set('againOut', c2.length + ' bytes: ' + hexBuf(c2).slice(0, 32) + '… ' + (same ? 'identical?!' : 'different ciphertext'), 'err');
+      document.getElementById('demoNote').textContent = 'Same plaintext, different ciphertext, every time: OAEP injects fresh randomness, so an attacker cannot compare ciphertexts and textbook attacks (Håstad) fail.';
+    });
+  }
+
+  function tamper() {
+    if (!ct) return;
+    var broken = new Uint8Array(ct);
+    broken[0] ^= 0x01; // flip one bit of the ciphertext
+    decrypt(broken).then(function (r) {
+      document.getElementById('demoNote').textContent = 'One flipped ciphertext bit and OAEP can no longer unpad the 256-byte block → decryption refuses. The plaintext is never released to a manipulator.';
+      set('decOut', r === 'ok' ? 'decrypted?! (should never happen)' : 'decryption failed → tampering rejected', 'err');
+    });
+  }
+
+  go(0);
+})();
+</script>
+</body>
+</html>
