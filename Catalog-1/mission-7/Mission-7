@@ -1,0 +1,10 @@
+7. PKI und Zertifikate
+Beschreiben Sie die Rolle einer Public Key Infrastructure (PKI) in der IT-Sicherheit.
+Erstellen Sie ein Zertifikat (z. B. über "Let's Encrypt" oder als Self-Signed-Zertifikat) und erklären Sie die Anforderungen und die einzelnen Bestandteile des Zertifikats.
+Diskutieren Sie, welche Bedeutung die Zertifikatsbestandteile für die sichere Kommunikation haben.
+
+English version:
+7. PKI and Certificates
+Describe the role of a Public Key Infrastructure (PKI) in IT security.
+Create a certificate (e.g., via “Let’s Encrypt” or as a self-signed certificate) and explain the requirements and the individual components of the certificate.
+Discuss the significance of the certificate components for secure communication.

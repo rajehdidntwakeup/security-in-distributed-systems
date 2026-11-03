@@ -1,0 +1,278 @@
+<meta charset="utf-8">
+<title>PKI and Certificates</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-3/Mission-4 decks (existing project system)
+   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, fixed dots + arrows
+   Color: dark navy surface; teal = secure/verified, red = broken/risk
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (cert fields/commands) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; }
+
+/* type */
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code, .certfield { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+
+/* cards */
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 760px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+/* chain diagram */
+.chain { font-family: var(--mono); font-size: clamp(.78rem, 2.6vw, 1rem); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 14px; max-width: 780px; margin: 0 auto; width: 100%; }
+.chain .node { color: var(--fg); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .pl { color: var(--accent); border: 1px solid var(--edge); background: var(--surface-2); border-radius: 6px; padding: 2px 7px; }
+.chain .op { color: var(--muted); }
+.chain .op.h { color: var(--accent); }
+
+/* command block */
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 720px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 10px; }
+.demo .code { font-family: var(--mono); font-size: .8rem; color: var(--accent); line-height: 1.7; overflow-x: auto; white-space: pre; }
+.demo .code .c { color: var(--muted); }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+/* table */
+.tablewrap { overflow-x: auto; max-width: 760px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+/* verdict pill */
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+
+/* controls */
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-7 · PKI and Certificates</p>
+      <h1>PKI and Certificates: Who Holds Which Key?</h1>
+      <p class="p">Why public keys need an infrastructure to be trusted, what a certificate really attests, and how it differs from symmetric encryption.</p>
+    </div>
+  </section>
+
+  <!-- 2 · principle -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">Principle</p>
+    <h2>A public key alone proves nothing</h2>
+    <div class="inner">
+      <p class="p">Anyone can publish a key and claim to be the bank. A <b>certificate</b> fixes this: it binds a public key to an <b>identity</b> and a <b>validity period</b>, and an issuer signs the whole package. The chain of trust:</p>
+      <div class="chain">
+        <span class="pl">Root CA (in trust store)</span><span class="op h">signs</span><span class="node">Intermediate CA</span><span class="op h">signs</span><span class="node">Server certificate</span>
+      </div>
+      <p class="p">The PKI is this infrastructure: CAs that issue and revoke certificates, registration with domain validation, trust stores in OS and browser, and revocation via <code>CRL</code> and <code>OCSP</code>.</p>
+    </div>
+  </section>
+
+  <!-- 3 · role of the PKI -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">Role in IT security</p>
+    <h2>What the PKI actually does</h2>
+    <div class="cards two">
+      <div class="card good"><b>Solves key distribution</b><span>The main task. Symmetric keys need a secret channel; public keys may be published openly, the PKI attests <b>whose</b> key it is.</span></div>
+      <div class="card good"><b>Authentication</b><span>In the TLS handshake the certificate proves the server's identity. The whole web's defense against man-in-the-middle rests on it.</span></div>
+      <div class="card"><b>Scales trust</b><span>A few dozen root CAs cover millions of servers. No bilateral agreements needed.</span></div>
+      <div class="card"><b>Manages the lifecycle</b><span>Expiry, serial numbers, revocation, re-issue: when a key is stolen, the PKI can invalidate it.</span></div>
+    </div>
+  </section>
+
+  <!-- 4 · vs symmetric -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">PKI vs. symmetric encryption</p>
+    <h2>Different layers, one pipeline</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th></th><th>PKI (asymmetric + certificates)</th><th>Symmetric (e.g. AES)</th></tr>
+        <tr><td>Nature</td><td>Infrastructure for issue/verify/revoke</td><td>Pure encryption algorithm</td></tr>
+        <tr><td>Keys</td><td>Key pair + certificate per participant</td><td>One shared secret</td></tr>
+        <tr><td>Identity</td><td><span class="yes">Provable</span> via CA signature</td><td><span class="no">Not provable</span>: key possession is all</td></tr>
+        <tr><td>Speed</td><td>Slow (handshake, validation)</td><td><span class="yes">Very fast</span>, bulk data</td></tr>
+        <tr><td>Revocation</td><td><span class="yes">Possible</span>: CRL/OCSP</td><td>Only re-keying</td></tr>
+        <tr><td>Works with strangers?</td><td><span class="yes">Yes</span>: CA is the trust anchor</td><td><span class="no">No</span>: needs pre-shared secret</td></tr>
+      </table>
+    </div>
+    <p class="p">In practice they work together, see next slide.</p>
+  </section>
+
+  <!-- 5 · TLS hybrid -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Applied · TLS as the example</p>
+    <h2>PKI authenticates, AES carries the data</h2>
+    <div class="inner">
+      <div class="chain">
+        <span class="pl">Certificate + signature</span><span class="op h">verify</span><span class="node">Key exchange</span><span class="op h">derive</span><span class="pl">Session key (AES-GCM)</span>
+      </div>
+      <p class="p">The PKI part is slow and runs once: it proves the server's identity and secures the handshake. Then a <b>symmetric session key</b> encrypts the bulk traffic, because it is orders of magnitude faster. <b>Without certificates:</b> Diffie–Hellmann alone protects against eavesdropping, but a man-in-the-middle can swap keys undetected. The certificate closes exactly this gap.</p>
+    </div>
+  </section>
+
+  <!-- 6 · create -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">Practical · own certificate</p>
+    <h2>One command, full certificate</h2>
+    <div class="demo">
+      <div class="code">openssl req -x509 -newkey rsa:2048 -keyout selfsigned.key -out selfsigned.crt \
+    -days 365 -nodes -subj "//C=DE\CN=localhost\emailAddress=student@example.com"</div>
+      <div class="cards two">
+        <div class="card"><b><code>-newkey rsa:2048</code></b><span>Generates the RSA key pair (key + cert in one step).</span></div>
+        <div class="card"><b><code>-x509 -days 365</code></b><span>Output an X.509 certificate, valid 1 year.</span></div>
+        <div class="card"><b><code>-subj "CN=…"</code></b><span>Distinguished Name: the identity the certificate attests.</span></div>
+        <div class="card bad"><b>Self-signed</b><span>Issuer = subject, no third party confirms identity. Browser warns "Not trusted". Let's Encrypt needs a public server + ACME client (certbot) instead.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · components -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">Anatomy · from our selfsigned.crt</p>
+    <h2>What the certificate contains</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Component</th><th>Our value</th><th>Meaning</th></tr>
+        <tr><td>Subject</td><td><code>C=DE, CN=localhost</code></td><td>The attested identity</td></tr>
+        <tr><td>Public Key</td><td><code>RSA 2048, e=65537</code></td><td>The key the whole attestation is about</td></tr>
+        <tr><td>Validity</td><td><code>3 Nov 2026 – 3 Nov 2027</code></td><td>Freshness window</td></tr>
+        <tr><td>Serial Number</td><td><code>07:36:e8:7c:…</code></td><td>Unique ID for CRL/OCSP</td></tr>
+        <tr><td>Issuer</td><td><code>= Subject</code></td><td><span class="no">Self-signed</span>: vouches for itself</td></tr>
+        <tr><td>Signature (SHA-256/RSA)</td><td><code>2a:2d:89:f4:…</code></td><td>CA signature → tamper-proof + authentic</td></tr>
+        <tr><td>SKI = AKI</td><td><code>B6:BB:1A:FA:…</code></td><td>Identical key IDs: machine-proof of self-signing</td></tr>
+        <tr><td>Basic Constraints</td><td><code>CA:TRUE</code></td><td>OpenSSL default; a server cert would use <code>CA:FALSE</code> + SAN</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8 · significance + takeaway -->
+  <section class="slide" id="s8">
+    <p class="eyebrow">Significance for secure communication</p>
+    <h2>Each component carries one guarantee</h2>
+    <div class="cards three">
+      <div class="card good"><b>Subject/SAN</b><span>The host check: the certificate is only valid for exactly this server.</span></div>
+      <div class="card good"><b>Signature + chain</b><span>Authenticity: verified back to a root CA, defeats man-in-the-middle.</span></div>
+      <div class="card good"><b>Validity</b><span>Rejects expired or already-compromised keys.</span></div>
+      <div class="card good"><b>Public key</b><span>Basis of the key exchange: only the private key holder can derive the session.</span></div>
+      <div class="card good"><b>Serial + CRL/OCSP</b><span>Revocation limits the damage when a key is stolen.</span></div>
+      <div class="card good"><b>Key Usage, CA flag</b><span>Restricts scope: a server certificate cannot sign other certificates.</span></div>
+    </div>
+    <p class="p">The <b>Certificate Authority (CA), which is trusted and signs</b>, is the crucial difference.</p>
+    <span class="verdict">Certificate = public key + identity + validity + CA signature</span>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="ctrl">
+  <button id="prev" type="button">← Back</button>
+  <button id="next" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsBox = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var i = 0;
+
+  slides.forEach(function (s, n) {
+    var d = document.createElement('button');
+    d.className = 'dot';
+    d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (n + 1));
+    d.addEventListener('click', function () { go(n); });
+    dotsBox.appendChild(d);
+  });
+  var dots = Array.prototype.slice.call(dotsBox.children);
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    dots.forEach(function (d, k) { d.classList.toggle('active', k === i); });
+    pgnum.textContent = (i + 1) + ' / ' + slides.length;
+  }
+
+  document.getElementById('prev').addEventListener('click', function () { go(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { go(i + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') go(i + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(i - 1);
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+
+  go(0);
+})();
+</script>
