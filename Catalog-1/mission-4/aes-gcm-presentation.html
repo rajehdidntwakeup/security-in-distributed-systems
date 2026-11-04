@@ -135,7 +135,7 @@ td .no { color: var(--bad); font-weight: 700; }
     <div class="inner">
       <p class="eyebrow">Mission-4 · Symmetric Encryption</p>
       <h1>AES-256-GCM: One Key, Both Directions</h1>
-      <p class="p">How the standard cipher keeps data confidential and untampered, and what breaks it in practice.</p>
+      <p class="p">One key locks and unlocks. Nobody has ever broken AES, yet plenty of systems fell by misusing it.</p>
     </div>
   </section>
 
@@ -145,7 +145,7 @@ td .no { color: var(--bad); font-weight: 700; }
     <h2>One shared secret key</h2>
     <div class="inner">
       <p class="math">E<sub>k</sub>(P) <small>=</small> C&nbsp;&nbsp;&nbsp;D<sub>k</sub>(C) <small>=</small> P&nbsp;&nbsp;<small>(same k on both sides)</small></p>
-      <p class="p">Same key encrypts and decrypts. Both parties must share it over a confidential channel in advance: the <b>key distribution problem</b>. Used everywhere bulk data moves fast: TLS, disk encryption, VPNs, Wi-Fi.</p>
+      <p class="p">Like a house key: the same key locks and unlocks. Simple. The catch: <b>how do you get the key to the other person without it being stolen on the way?</b> That is the <b>key distribution problem</b>. Used everywhere data moves fast: TLS, disk encryption, VPNs, Wi-Fi.</p>
     </div>
   </section>
 
@@ -154,24 +154,25 @@ td .no { color: var(--bad); font-weight: 700; }
     <p class="eyebrow">The algorithm</p>
     <h2>AES, 14 rounds of scramble</h2>
     <div class="inner">
+      <p class="p">Feed in 16 bytes + a 256-bit key. The machine <b>substitutes, shifts and mixes</b> them 14 times, each round stirred with the key, so every output bit depends on every input bit.</p>
       <div class="chain">
-        <span class="pl">state</span><span class="op h">→</span><span class="hashnode">SubBytes</span><span class="op h">→</span><span class="hashnode">ShiftRows</span><span class="op h">→</span><span class="hashnode">MixColumns</span><span class="op h">→</span><span class="hashnode">AddRoundKey</span><span class="op h">→</span><span class="pl">×14</span>
+        <span class="pl">plaintext</span><span class="op h">→</span><span class="hashnode">scramble</span><span class="op h">→</span><span class="hashnode">mix</span><span class="op h">→</span><span class="hashnode">stir key in</span><span class="op h">→</span><span class="pl">…×14</span><span class="op h">→</span><span class="pl">ciphertext</span>
       </div>
-      <p class="p">Each round substitutes (S-box), shifts and mixes the 4×4 state bytes, then XORs a round key from the 256-bit master key. Result: <b>avalanche</b>, one flipped plaintext bit changes about half the ciphertext bits. No practical break exists; brute force over <code>2<sup>256</sup></code> keys is hopeless.</p>
+      <p class="p">Result: <b>avalanche</b>. Flip 1 input bit, about half the output bits flip. Nobody has ever broken AES, and brute force over <code>2<sup>256</sup></code> keys is hopeless.</p>
     </div>
   </section>
 
   <!-- 4 · GCM -->
   <section class="slide" id="s4">
     <p class="eyebrow">Mode of operation</p>
-    <h2>GCM: secrecy plus a tag</h2>
+    <h2>GCM: AES + a tamper-proof seal</h2>
     <div class="inner">
       <div class="chain">
-        <span class="pl">P</span><span class="op">⊕</span><span class="hashnode">keystream</span><span class="op h">→</span><span class="pl">C</span><span class="op h">→</span><span class="hashnode">GHASH</span><span class="op h">→</span><span class="pl">tag</span>
+        <span class="pl">P</span><span class="op">⊕</span><span class="hashnode">keystream</span><span class="op h">→</span><span class="pl">C</span><span class="op h">→</span><span class="hashnode">seal</span><span class="op h">→</span><span class="pl">tag</span>
       </div>
       <div class="cards two">
-        <div class="card"><b>Nonce (96 bit)</b><span>Seeds the keystream. Must be <b>fresh per message</b> under the same key.</span></div>
-        <div class="card good"><b>Tag (128 bit)</b><span>GHASH over the ciphertext: detects <b>any</b> modification. Decryption verifies first, releases plaintext only on match.</span></div>
+        <div class="card"><b>Fresh nonce</b><span>A number used <b>once</b> per message. Reuse it → disaster (slide 7 shows the leak).</span></div>
+        <div class="card good"><b>Tag</b><span>The seal over the ciphertext. Any tamper breaks it, so plaintext is only released when the seal verifies. No tamper slips through.</span></div>
       </div>
     </div>
   </section>
@@ -181,13 +182,12 @@ td .no { color: var(--bad); font-weight: 700; }
     <p class="eyebrow">Code · Python</p>
     <h2>Four lines, done right</h2>
     <div class="inner">
-      <div class="demo" style="font-family:var(--mono); font-size:.82rem; color:var(--accent); line-height:1.7; overflow-x:auto;">
-key   = AESGCM.generate_key(bit_length=256)
+      <div class="demo" style="display:block; white-space:pre; font-family:var(--mono); font-size:.82rem; color:var(--accent); line-height:1.7; overflow-x:auto;">key   = AESGCM.generate_key(bit_length=256)
 nonce = os.urandom(12)                          # fresh per message
 ct    = AESGCM(key).encrypt(nonce, message, None)
 pt    = AESGCM(key).decrypt(nonce, ct, None)    # tag verified first
       </div>
-      <p class="p">Keys from a password? Stretch it with a salted KDF (scrypt) first. Full runnable demo: <code>aes_demo.py</code>.</p>
+      <p class="p">Key must be random, never a plain password. Full runnable demo: <code>aes_demo.py</code>.</p>
     </div>
   </section>
 
@@ -197,12 +197,12 @@ pt    = AESGCM(key).decrypt(nonce, ct, None)    # tag verified first
     <h2>What actually breaks AES</h2>
     <div class="inner">
       <div class="cards two">
-        <div class="card attack"><b>Nonce reuse</b><span>Same key + same nonce = same keystream, a <b>two-time pad</b>: C₁⊕C₂ = P₁⊕P₂, the keystream cancels and one known message leaks the other. No AES broken.</span></div>
-        <div class="card attack"><b>Key management</b><span>Keys in source code, passwords instead of random keys, keys left in memory. The usual real-world cause of "broken AES".</span></div>
-        <div class="card attack"><b>Missing authentication</b><span>Without a tag, ciphertexts are malleable, and CBC error messages leak plaintexts (padding oracles).</span></div>
-        <div class="card attack"><b>Side channels</b><span>Timing and power attacks on implementations. Defense: constant-time, vetted libraries. Never roll your own AES.</span></div>
+        <div class="card attack"><b>Nonce reuse</b><span>Same nonce + same key on 2 messages = the <b>keystream cancels</b>: C₁⊕C₂ = P₁⊕P₂. Know one message → recover the other. Classic GCM failure.</span></div>
+        <div class="card attack"><b>Key management</b><span>Keys in source code, passwords used as keys, keys leaked to disk or memory dumps. The usual real-world cause of "broken AES".</span></div>
+        <div class="card attack"><b>No authentication</b><span>Cipher without a tag → ciphertext becomes malleable, error messages leak plaintexts (padding oracles).</span></div>
+        <div class="card attack"><b>Side channels</b><span>Timing/power attacks on sloppy implementations. Defense: vetted libraries. Never roll your own AES.</span></div>
       </div>
-      <p class="p">Brute force was never the threat; <code>2<sup>256</sup></code> keys end that discussion.</p>
+      <p class="p">The pattern: nobody breaks the math, they break the <b>usage</b>.</p>
     </div>
   </section>
 
@@ -231,7 +231,7 @@ pt    = AESGCM(key).decrypt(nonce, ct, None)    # tag verified first
   <!-- 8 · vs asymmetric + takeaway -->
   <section class="slide" id="s8">
     <p class="eyebrow">Symmetric vs. asymmetric</p>
-    <h2>Different tools, one pipeline</h2>
+    <h2>Different tools, one team</h2>
     <div class="tablewrap">
       <table>
         <tr><th></th><th>Symmetric (AES-GCM)</th><th>Asymmetric (RSA / ECC)</th></tr>
@@ -243,7 +243,7 @@ pt    = AESGCM(key).decrypt(nonce, ct, None)    # tag verified first
       </table>
     </div>
     <div class="inner">
-      <p class="p">Real systems are <b>hybrid</b> (TLS 1.3): asymmetric crypto authenticates the peers and derives the session key, AES-GCM then encrypts the whole session. Asymmetric says <em>who</em>, symmetric moves <em>the data</em>.</p>
+      <p class="p">Real systems use both (TLS 1.3): asymmetric secures the handshake and sets up the session key, then AES-GCM encrypts everything. Asymmetric says <em>who</em>, symmetric moves <em>the data</em>.</p>
       <span class="verdict bad">Never reuse nonces, never hand-roll AES</span>
       <span class="verdict">AES-256-GCM: key ‖ fresh nonce ‖ tag</span>
     </div>

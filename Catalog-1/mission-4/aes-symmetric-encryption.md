@@ -1,24 +1,33 @@
 # Symmetric Encryption with AES-256-GCM
 
-## Principle
+## The idea
 
-Symmetric encryption uses **one shared secret key** for encryption and decryption:
-`E_k(plaintext) = ciphertext` and `D_k(ciphertext) = plaintext` (same `k` on both sides).
-Both parties must already share the key through a confidential channel first: this **key
-distribution problem** is the main weakness of symmetric schemes.
+Symmetric encryption = **one shared secret key**, locked with a padlock that same key opens.
+Encrypt and decrypt both use the same key `k`: `E_k(plaintext) = ciphertext`, `D_k(ciphertext) = plaintext`.
 
-**AES** (NIST standard FIPS 197) is today's standard block cipher: 128-bit blocks,
-keys of 128/192/256 bits (→ 10/12/14 rounds). Each round applies:
-**SubBytes** (non-linear S-box substitution) → **ShiftRows** + **MixColumns** (diffusion)
-→ **AddRoundKey** (XOR with a derived round key). 14 rounds produce an avalanche effect:
-flipping one plaintext bit changes roughly half the ciphertext bits. No practical break
-of full AES exists; brute force over 2^256 keys is out of reach.
+That one line is also the problem: how do you hand someone the key without someone
+else stealing it on the way? That is the **key distribution problem**: the main
+weakness of all symmetric encryption.
 
-A block cipher alone encrypts only 16 bytes, so it runs in a **mode of operation**.
-Never ECB (identical blocks stay identical → patterns leak). Use **GCM**: AES in counter
-mode for secrecy plus the GHASH MAC for integrity. GCM needs a **fresh 96-bit nonce per
-message**, outputs a **128-bit authentication tag** (any tampering is detected), and
-optionally authenticates **AAD** (associated data: authenticated, not encrypted).
+## AES: a very good scrambling machine
+
+**AES** is the world standard cipher (NIST, FIPS 197). You feed it 16 bytes and a key;
+it scrambles them 14 times (for AES-256) with substitution and mixing steps so every
+output bit depends on every input bit. Flip one plaintext bit → about **half the
+ciphertext bits** flip (**avalanche effect**). No practical break of AES exists, and
+brute force over 2^256 keys is hopeless. Nobody has ever broken AES itself.
+
+## GCM: AES + a tamper-proof seal
+
+AES encrypts only 16 bytes at a time, so a **mode of operation** strings blocks
+together. The one to use today is **GCM**:
+
+- encrypts in counter mode for **secrecy**,
+- adds a **128-bit tag** for **integrity**: any change to the ciphertext fails
+  verification before the plaintext is ever released,
+- takes a **fresh 96-bit nonce per message** (a nonce = a unique number used once).
+
+Never use ECB (identical blocks stay identical → patterns leak).
 
 ## Code Example (Python, `cryptography`)
 
@@ -37,21 +46,23 @@ ct[0] ^= 1                                    # attacker flips one bit...
 AESGCM(key).decrypt(nonce, ct, None)          # ...raises InvalidTag
 ```
 
-## Attack Scenarios
+## How people actually break it
 
-- **Brute force:** 2^256 keys, hopeless and never the real weakness. (Quantum: Grover
-  halves the key length, so AES-256 stays safe; RSA/ECC would not.)
-- **Nonce reuse in GCM/CTR:** same key + same nonce = same keystream, a two-time pad.
-  `C1 XOR C2 = P1 XOR P2`: the keystream cancels, a known plaintext leaks the other
-  message without breaking AES. Reuse also enables GCM tag forgeries.
-- **Missing authentication:** without a tag, ciphertexts are malleable and CBC
-  decryption error messages leak plaintexts (padding oracle attacks).
-- **Key management failures:** keys in source code, passwords instead of random keys,
-  keys left in memory: the usual real-world cause of AES "breaks".
-- **Side channels:** timing/power attacks on implementations; rely on vetted, constant-time
-  libraries, never roll your own AES.
+Nobody breaks the math. They break how it is used:
 
-## Differences from Asymmetric Encryption
+- **Nonce reuse:** same key + same nonce = same keystream for two messages →
+  `C1 XOR C2 = P1 XOR P2`: a known plaintext reveals the other message. The tag
+  breaks too. This is the classic real AES-GCM failure.
+- **Key management:** keys in source code, passwords used as keys, keys left in disk
+  or memory dumps. The most common cause of real-world AES "breaks".
+- **No authentication:** using CBC or a plain stream without a tag → ciphertexts
+  become malleable, error messages leak plaintexts (padding oracles).
+- **Side channels:** timing/power attacks on implementations. Use vetted libraries,
+  never roll your own AES.
+- **Brute force:** 2^256 keys, out of reach even for quantum (Grover's algorithm
+  "only" halves the effective key length; AES-256 stays safe).
+
+## Symmetric vs asymmetric at a glance
 
 | Aspect | Symmetric (AES-GCM) | Asymmetric (RSA/ECC) |
 |--------|--------------------|----------------------|
@@ -62,6 +73,6 @@ AESGCM(key).decrypt(nonce, ct, None)          # ...raises InvalidTag
 | Keys for n people | ~n²/2 | n |
 | Quantum | AES-256 still safe | Broken (Shor) |
 
-In real systems they work together (**hybrid encryption**, e.g. TLS 1.3): asymmetric
-crypto authenticates the peers and derives the session key over an open channel, then
-AES-GCM encrypts the whole session. Asymmetric says *who*, symmetric moves *the data*.
+Real systems use both (**hybrid encryption**, TLS 1.3): asymmetric crypto
+authenticates the peers and derives the session key, then AES-GCM encrypts all the
+data. Asymmetric says *who*, symmetric moves *the data*.
