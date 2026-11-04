@@ -10,7 +10,7 @@
 
 <style>
 /* Design plan - same identity as Mission-5/rsa-encryption-presentation.html
-   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, fixed dots + arrows
+   Layout: fullscreen slide deck, 7 slides (~5 min), centered column, fixed dots + arrows
    Color: lab-dark navy on surface; teal = secure/OK, red = attack
    Type: Sora (titles), Manrope (body), IBM Plex Mono (keys/ciphertexts/math) */
 
@@ -88,22 +88,6 @@ code, .math, .hash { font-family: var(--mono); font-size: .85em; color: var(--ac
 .chain .op { color: var(--muted); }
 .chain .op.h { color: var(--accent); }
 .chain .red { color: var(--bad); }
-
-/* live demo */
-.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 680px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 12px; }
-.demo .field { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.demo label { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.demo input[type=text] { flex: 1 1 200px; min-width: 0; background: var(--surface-2); border: 1px solid var(--edge); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: .9rem; }
-.demo input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.demo .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; }
-.demo .btn.btnBad { background: var(--bad); color: var(--bad-ink); }
-.demo .row { font-family: var(--mono); font-size: .78rem; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
-.demo .row .tag { display: inline-block; color: var(--accent-ink); background: var(--accent); border-radius: 5px; padding: 0 6px; font-size: .68rem; }
-.demo .row.xor .tag, .demo .row.bad .tag { background: var(--bad); color: var(--bad-ink); }
-.demo .out { color: var(--muted); }
-.demo .out.ok { color: var(--accent); }
-.demo .out.err { color: var(--bad); font-weight: 700; }
-.demo .note { color: var(--muted); font-size: .8rem; }
 
 /* summary table */
 .tablewrap { overflow-x: auto; max-width: 720px; width: 100%; margin: 0 auto; }
@@ -203,7 +187,6 @@ td .no { color: var(--bad); font-weight: 700; }
         <tr><td>Keys</td><td>One shared secret</td><td>Key pair: public + private per person</td></tr>
         <tr><td>Key exchange</td><td><span class="no">Hard:</span> confidential channel needed first</td><td><span class="yes">Easy:</span> public key shared openly</td></tr>
         <tr><td>Speed</td><td><span class="yes">Very fast</span>, any size</td><td>Slower per op, but only the session key is RSA</td></tr>
-        <tr><td>Scalability</td><td>n people → n·(n−1)/2 pair keys</td><td>n people → n key pairs</td></tr>
         <tr><td>Applied to</td><td>Channels: disk, VPN, TLS bulk, Wi-Fi</td><td>Objects between identified persons: mail, files</td></tr>
         <tr><td>Identity / integrity</td><td><span class="no">None by itself</span></td><td><span class="yes">Built in</span>: every message can be signed</td></tr>
         <tr><td>Trust model</td><td>Pre-shared secret or PKI/CA</td><td>Web of trust, fingerprint check, no CA</td></tr>
@@ -229,30 +212,8 @@ td .no { color: var(--bad); font-weight: 700; }
     </div>
   </section>
 
-  <!-- 7 · live demo -->
+  <!-- 7 · demo script + takeaway -->
   <section class="slide" id="s7">
-    <p class="eyebrow">Live demo</p>
-    <h2>Hybrid PGP in your browser</h2>
-    <div class="demo">
-      <div class="field">
-        <label for="msgInput">Message</label>
-        <input type="text" id="msgInput" value="Meet at 18:00, bring the report" spellcheck="false" autocomplete="off">
-        <button class="btn" id="sendBtn" type="button">Sign &amp; encrypt</button>
-      </div>
-      <div class="row"><span class="tag">keys</span> <span class="out" id="keyOut">-</span></div>
-      <div class="row"><span class="tag">ses-key</span> <span class="out" id="skOut">-</span></div>
-      <div class="row"><span class="tag">ct</span> <span class="out" id="ctOut">-</span></div>
-      <div class="row"><span class="tag">dec+verify</span> <span class="out" id="okOut">-</span></div>
-      <div class="field">
-        <button class="btn btnBad" id="tampBtn" type="button">Attacker flips 1 bit</button>
-      </div>
-      <div class="row bad"><span class="tag">tampered</span> <span class="out" id="badOut">-</span></div>
-      <p class="note">Real WebCrypto: an RSA-OAEP key pair (like a PGP key pair), a fresh AES-GCM session key per message, RSA-PSS signature. Exactly the PGP recipe: hybrid + signature.</p>
-    </div>
-  </section>
-
-  <!-- 8 · demo script + takeaway -->
-  <section class="slide" id="s8">
     <div class="inner">
       <p class="eyebrow">In the repo · Summary</p>
       <h2>PGP in six commands</h2>
@@ -303,82 +264,6 @@ addEventListener('keydown', e => {
   if (e.key === 'End') go(slides.length - 1);
 });
 go(0);
-
-/* ---- hybrid PGP demo (real WebCrypto) ----
-   1. Alice generates an RSA key pair (her "PGP key pair")
-   2. per message: fresh AES-GCM session key -> encrypts the message
-   3. session key is encrypted with Bob's view? No: sender = Alice encrypts to HER public pair for demo clarity
-      (one key pair in the demo: recipient == owner of private key)
-   4. Alice signs (RSA-PSS) over the ciphertext -> sign & encrypt
-   5. private key decrypts session key -> AES decrypts message -> signature verified
-   6. tampering 1 bit of ciphertext -> decrypt/GCM auth fails or signature fails */
-const $ = id => document.getElementById(id);
-let keys = null, last = null;
-
-const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-const hex = buf => [...new Uint8Array(buf)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('') + '…';
-
-(async () => {
-  const pair = await crypto.subtle.generateKey(
-    { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
-    true, ['encrypt', 'decrypt']);
-  const signKey = await crypto.subtle.generateKey(
-    { name: 'RSA-PSS', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
-    true, ['sign', 'verify']);
-  keys = { enc: pair, sig: signKey };
-  const spki = await crypto.subtle.exportKey('spki', pair.publicKey);
-  const fpr = hex(await crypto.subtle.digest('SHA-256', spki));
-  $('keyOut').innerHTML = '<span class="ok">RSA-2048 encryption pair + RSA-2048 signing pair</span> (fpr ' + fpr + ')';
-})().catch(() => $('keyOut').textContent = 'keygen failed');
-
-$('sendBtn').addEventListener('click', async () => {
-  if (!keys) return;
-  const msg = new TextEncoder().encode($('msgInput').value);
-  try {
-    // hybrid: fresh session key, AES-GCM for the data
-    const sk = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, sk, msg);
-    const rawSk = await crypto.subtle.exportKey('raw', sk);
-    // wrap the session key with the RSA public key (same recipe as OpenPGP)
-    const wrappedSk = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, keys.enc.publicKey, rawSk);
-    // sign the ciphertext (sign & encrypt like OpenPGP)
-    const sig = await crypto.subtle.sign({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.privateKey, ct);
-
-    last = { ct, iv, wrappedSk, sig };
-    $('skOut').textContent = 'AES-256 session key, wrapped by RSA-OAEP (' + wrappedSk.byteLength + ' bytes)';
-    $('ctOut').textContent = hex(iv) + '^' + hex(ct);
-    $('skOut').className = $('ctOut').className = 'out ok';
-
-    // decrypt + verify
-    const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keys.enc.privateKey, wrappedSk));
-    const sk2 = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['decrypt']);
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, sk2, ct);
-    const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, sig, ct);
-    $('okOut').innerHTML = valid
-      ? '<span class="ok">✓ signature valid, sender: Alice, message: "' + new TextDecoder().decode(pt) + '"</span>'
-      : '<span class="err">signature invalid</span>';
-    $('okOut').className = valid ? 'out ok' : 'out err';
-  } catch (e) { $('okOut').textContent = 'error: ' + e.message; }
-});
-
-$('tampBtn').addEventListener('click', async () => {
-  if (!last) return;
-  const tampered = new Uint8Array(last.ct);
-  tampered[10] ^= 0x01;                       // flip one bit
-  try {
-    const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keys.enc.privateKey, last.wrappedSk));
-    const sk2 = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['decrypt']);
-    await crypto.subtle.decrypt({ name: 'AES-GCM', iv: last.iv }, sk2, tampered);
-    $('badOut').textContent = 'decrypted, but signature check will fail';
-    $('badOut').className = 'out';
-  } catch {
-    $('badOut').innerHTML = '<span class="err">✗ rejected: GCM authentication failed, tampering detected</span>';
-  }
-  const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, last.sig, tampered);
-  if (!valid && !$('badOut').className.includes('err'))
-    $('badOut').innerHTML = '<span class="err">✗ signature invalid, tampering detected</span>';
-});
 </script>
 </body>
 </html>

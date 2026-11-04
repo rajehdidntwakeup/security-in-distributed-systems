@@ -50,7 +50,6 @@ instead.
 | Keys | One shared secret key for both parties | Key pair: public + private; each participant owns their own |
 | Key exchange | Hard: secret key must reach the partner over a confidential channel beforehand | Easy: the public key is published/shared openly, no secret transport |
 | Speed | Very fast, any data size | Slower per operation, but only the session key is asymmetrically encrypted |
-| Participants | n people need n·(n−1)/2 different pairwise keys | n people each manage exactly 1 key pair |
 | Scope of use | Session-based channel encryption without identity/keys between peers: disk encryption, VPN, Wi-Fi (WPA2), TLS bulk traffic, databases | **Object-based** end-to-end encryption of files, e-mails, text messages between identified persons, plus signatures |
 | Identity/integrity | None by itself: AES alone cannot prove *who* sent something | Built in: every message can be signed |
 | Trust model | Presupposes pre-shared secret or PKI | Web of trust / fingerprint verification, no central authority |
