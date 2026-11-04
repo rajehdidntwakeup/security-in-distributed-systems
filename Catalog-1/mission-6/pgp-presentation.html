@@ -155,7 +155,7 @@ td .no { color: var(--bad); font-weight: 700; }
         <div class="card"><b>OpenPGP · RFC 4880</b><span>The format lives on as an open standard: keys, signatures and ciphertext have a defined wire format.</span></div>
         <div class="card"><b>GNU Privacy Guard</b><span>GnuPG (GPG) is the widely used open-source implementation: in practice "PGP" and "GPG" mean the same thing.</span></div>
       </div>
-      <p class="p">PGP answers <b>symmetric or asymmetric?</b> with: <b>both, combined deliberately</b> — a <b>hybrid</b> scheme. Each cipher does the job it is fastest at.</p>
+      <p class="p">PGP answers <b>symmetric or asymmetric?</b> with: <b>both, combined deliberately</b>: a <b>hybrid</b> scheme. Each cipher does the job it is fastest at.</p>
     </div>
   </section>
 
@@ -259,7 +259,7 @@ td .no { color: var(--bad); font-weight: 700; }
       <div class="chain">
         <span class="hashnode">pgp_demo.py</span><span class="op h">→</span><span class="pl">keygen</span><span class="op h">→</span><span class="pl">sign</span><span class="op h">→</span><span class="pl">encrypt</span><span class="op h">→</span><span class="pl">decrypt</span><span class="op h">→</span><span class="pl">verify</span><span class="op h">→</span><span class="hashnode">tamper = rejected</span>
       </div>
-      <p class="p"><b>Takeaway:</b> PGP is <b>symmetric + asymmetric in one</b> — AES for the data, RSA for the key. That hybrid gets you fast encryption <b>and</b> the key distribution problem solved: you can encrypt for someone you have never met, and sign so they know it was you.</p>
+      <p class="p"><b>Takeaway:</b> PGP is <b>symmetric + asymmetric in one</b>: AES for the data, RSA for the key. That hybrid gets you fast encryption <b>and</b> the key distribution problem solved: you can encrypt for someone you have never met, and sign so they know it was you.</p>
       <p class="p"><code>python pgp_demo.py</code> · details in <code>pgp-encryption.md</code></p>
     </div>
   </section>
@@ -356,7 +356,7 @@ $('sendBtn').addEventListener('click', async () => {
     const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, sk2, ct);
     const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, sig, ct);
     $('okOut').innerHTML = valid
-      ? '<span class="ok">✓ signature valid, sender: Alice — "' + new TextDecoder().decode(pt) + '"</span>'
+      ? '<span class="ok">✓ signature valid, sender: Alice, message: "' + new TextDecoder().decode(pt) + '"</span>'
       : '<span class="err">signature invalid</span>';
     $('okOut').className = valid ? 'out ok' : 'out err';
   } catch (e) { $('okOut').textContent = 'error: ' + e.message; }
@@ -370,14 +370,14 @@ $('tampBtn').addEventListener('click', async () => {
     const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keys.enc.privateKey, last.wrappedSk));
     const sk2 = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['decrypt']);
     await crypto.subtle.decrypt({ name: 'AES-GCM', iv: last.iv }, sk2, tampered);
-    $('badOut').textContent = 'decrypted — but signature check will fail';
+    $('badOut').textContent = 'decrypted, but signature check will fail';
     $('badOut').className = 'out';
   } catch {
-    $('badOut').innerHTML = '<span class="err">✗ rejected: GCM authentication failed — tampering detected</span>';
+    $('badOut').innerHTML = '<span class="err">✗ rejected: GCM authentication failed, tampering detected</span>';
   }
   const valid = await crypto.subtle.verify({ name: 'RSA-PSS', saltLength: 32 }, keys.sig.publicKey, last.sig, tampered);
   if (!valid && !$('badOut').className.includes('err'))
-    $('badOut').innerHTML = '<span class="err">✗ signature invalid — tampering detected</span>';
+    $('badOut').innerHTML = '<span class="err">✗ signature invalid, tampering detected</span>';
 });
 </script>
 </body>
