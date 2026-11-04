@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Eavesdropping and the Padlock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-3/4/7/8/9 decks (existing project system)
+   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, dots + arrows
+   Color: dark navy surface; teal = security goal reached, red = risk/failure
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (labels, output) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; }
+
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 780px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 720px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 10px; }
+.demo .code { font-family: var(--mono); font-size: .8rem; color: var(--muted); line-height: 1.7; overflow-x: auto; white-space: pre; }
+.demo .code .c { color: var(--muted); }
+.demo .code .k { color: var(--accent); }
+.demo .code .warn { color: var(--bad); font-weight: 700; }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+.padlock { font-size: 2.6rem; line-height: 1; }
+
+.tri-picker { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.tri-picker button { background: var(--surface-2); color: var(--muted); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; transition: color .2s, border-color .2s; }
+.tri-picker button.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--edge)); }
+
+.quote { font-family: var(--display); font-size: clamp(1.05rem, 3.4vw, 1.5rem); font-weight: 600; max-width: 46ch; margin: 0 auto; text-wrap: balance; }
+
+.tablewrap { overflow-x: auto; max-width: 760px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: #2B0808; }
+
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-10 · Eavesdropping</p>
+      <h1>Eavesdropping and the Padlock</h1>
+      <p class="p">How attackers read unencrypted connections, how they read encrypted ones, and why a closed padlock is necessary but not sufficient.</p>
+    </div>
+  </section>
+
+  <!-- 2 · unencrypted -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">Plain HTTP</p>
+    <h2>Unencrypted = postcard on the bus</h2>
+    <div class="cards three">
+      <div class="card bad"><b>Passive sniffing</b><span>Anyone on the same Wi-Fi/LAN captures packets with Wireshark. No noise, hard to notice.</span></div>
+      <div class="card bad"><b>Man-in-the-middle</b><span>ARP spoofing, fake "free airport Wi-Fi", evil twin. Attacker sits between you and server, reads everything.</span></div>
+      <div class="card bad"><b>Session hijacking</b><span>Captured cookies or tokens let the attacker act as the victim. No password needed.</span></div>
+      <div class="card bad"><b>Observers on the path</b><span>ISPs, router admins, proxies: all plain traffic is readable.</span></div>
+      <div class="card bad"><b>Malware on the device</b><span>A trojan reads data before it ever leaves the machine.</span></div>
+    </div>
+    <p class="p"><b>What leaks:</b> passwords, cookies, tokens, messages, form input, full URLs and metadata.</p>
+  </section>
+
+  <!-- 3 · encrypted -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">TLS / HTTPS</p>
+    <h2>Encrypted: ciphertext unreadable, everything else fair game</h2>
+    <div class="cards three">
+      <div class="card bad"><b>Traffic analysis</b><span>Attacker sees who talks to whom, when, how much. Patterns and IPs still identify sites and actions.</span></div>
+      <div class="card bad"><b>Key theft</b><span>Nobody breaks AES. Attackers steal keys from memory: <b>Heartbleed</b> (2014) leaked keys and cookies.</span></div>
+      <div class="card bad"><b>Endpoint malware</b><span>Malware reads data <b>before</b> encryption and <b>after</b> decryption. Crypto bypassed, not broken.</span></div>
+      <div class="card bad"><b>Downgrade attacks</b><span>Trick parties into weak SSL (POODLE, SSLv2). Modern TLS 1.3 refuses to fall back.</span></div>
+      <div class="card bad"><b>Fake-certificate MITM</b><span>Attacker decrypts/re-encrypts with own cert. Works only if the victim accepts it: planted root CA, ignored warning.</span></div>
+      <div class="card bad"><b>Phishing</b><span>No crypto attack at all: trick the human, and the secret walks out. Encryption carries stolen data safely.</span></div>
+    </div>
+    <p class="p"><b>Key insight:</b> attacking the math is hopeless. Real attacks hit the weak points around the crypto: metadata, keys in memory, endpoints, downgrades, humans.</p>
+  </section>
+
+  <!-- 4 · what leaks even with TLS -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Metadata</p>
+    <h2>What an eavesdropper still sees under TLS</h2>
+    <div class="demo">
+      <div class="code"><span class="c"># observer on the path (Wi-Fi router, ISP) without breaking encryption:</span>
+whom you talk to    <span class="warn">destination IP + port</span>
+when and how often  <span class="warn">timestamps, sizes, timing</span>
+what you open       <span class="warn">approx. size/type of content (site fingerprint)</span>
+<span class="k">what they don't see: message content, passwords, cookies</span></div>
+      <div class="note">Who talks to whom and how much stays visible even in the strongest TLS 1.3 connection. Encryption hides <b>content</b>, not <b>existence</b>.</div>
+    </div>
+  </section>
+
+  <!-- 5 · the statement -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Evaluation</p>
+    <h2>Take the claim apart</h2>
+    <div class="padlock">🔒</div>
+    <p class="quote">"A closed padlock means the connection is secure and the visited domain is authentic."</p>
+    <div class="cards two">
+      <div class="card good"><b>What is true</b><span>Traffic to the domain is encrypted, and the certificate matches the domain in the address bar. That part is real.</span></div>
+      <div class="card bad"><b>The claim goes too far</b><span>"Secure" and "authentic" in the everyday sense mean much more than the padlock certifies. It is <b>necessary, but not sufficient</b>.</span></div>
+    </div>
+  </section>
+
+  <!-- 6 · toggle: tells / hides (interactive) -->
+  <section class="slide" id="s6">
+    <p class="eyebrow">Padlock reality check</p>
+    <h2>Flip between what it tells and what it hides</h2>
+    <div class="inner">
+      <div class="tri-picker" id="lock">
+        <button type="button" data-k="tells" class="on">What the padlock tells you</button>
+        <button type="button" data-k="hides">What it does NOT tell you</button>
+      </div>
+      <div class="demo">
+        <div class="cards two" id="lockCards"></div>
+        <div class="note" id="lockNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · the fraud angle -->
+  <section class="slide" id="s7">
+    <p class="eyebrow">Why "authentic" fails</p>
+    <h2>Every scammer can have a padlock</h2>
+    <div class="demo">
+      <div class="code"><span class="warn">🔒 https://</span>paypal-secure-login<span class="warn">.example.com/?account=verify</span>
+
+<span class="c"># Let's Encrypt issues certificates free and automatic:</span>
+<span class="c"># to everyone, including fraudsters. Valid cert, real padlock.</span>
+<span class="c"># Certificate proves: this domain matches its own certificate.</span>
+<span class="c"># Nothing more.</span></div>
+      <div class="cards three">
+        <div class="card bad"><b>Lookalike domains</b><span>paypa1.com, paypal-support.net: padlock + wrong domain.</span></div>
+        <div class="card bad"><b>Trust-seal misreading</b><span>Surveys: many users read the lock as "honest business". It never promised that.</span></div>
+        <div class="card bad"><b>Ignored warnings</b><span>A clicked-away certificate error defeats the whole point.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · takeaway -->
+  <section class="slide" id="s8">
+    <p class="eyebrow">Conclusion</p>
+    <h2>Padlock = encryption to that domain name, nothing more</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Claim</th><th>Verdict</th></tr>
+        <tr><td>Traffic encrypted</td><td><span class="yes">True</span></td></tr>
+        <tr><td>Domain matches certificate</td><td><span class="yes">True, technical sense</span></td></tr>
+        <tr><td>Site content safe</td><td><span class="no">No</span>, malware and fraud ride encrypted</td></tr>
+        <tr><td>Operator honest</td><td><span class="no">No</span>, fraudsters get valid certs</td></tr>
+        <tr><td>Connection cannot be eavesdropped</td><td><span class="no">No</span>, metadata, endpoints, keys, humans remain</td></tr>
+      </table>
+    </div>
+    <div class="inner">
+      <span class="verdict bad">Padlock necessary, not sufficient</span>
+      <p class="p">Trust comes from checking the domain itself: exact name, no lookalike, no ignored warning. The lock only says the connection to <b>whatever domain you actually visited</b> is encrypted.</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="ctrl">
+  <button id="prev" type="button">← Back</button>
+  <button id="next" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  /* deck navigation */
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsBox = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var i = 0;
+
+  slides.forEach(function (s, n) {
+    var d = document.createElement('button');
+    d.className = 'dot';
+    d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (n + 1));
+    d.addEventListener('click', function () { go(n); });
+    dotsBox.appendChild(d);
+  });
+  var dots = Array.prototype.slice.call(dotsBox.children);
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    dots.forEach(function (d, k) { d.classList.toggle('active', k === i); });
+    pgnum.textContent = (i + 1) + ' / ' + slides.length;
+  }
+
+  document.getElementById('prev').addEventListener('click', function () { go(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { go(i + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') go(i + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(i - 1);
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+  go(0);
+
+  /* padlock toggle on slide 6: tells vs hides */
+  var LOCK = {
+    tells: {
+      cls: 'good',
+      note: 'Certificate chain valid, domain in the address bar matches the certificate, transport is encrypted. Nothing more.',
+      cards: [
+        ['Encrypted transport', 'TLS: content unreadable for everyone on the path.'],
+        ['Name matches cert', 'The domain shown was certified by a CA.'],
+        ['Fresh session', 'Modern TLS 1.3: no downgrade, forward secrecy.']
+      ]
+    },
+    hides: {
+      cls: 'bad',
+      note: 'The padlock says nothing about the operator, the content, or the people using it.',
+      cards: [
+        ['Operator identity', 'Anyone can get a cert. The lock is not a trust seal.'],
+        ['Content safety', 'Malware, scams and phishing ride encrypted.'],
+        ['Endpoint security', 'Malware on your device reads data before encryption.']
+      ]
+    }
+  };
+  var btns = Array.prototype.slice.call(document.querySelectorAll('#lock button'));
+  function setLock(k) {
+    btns.forEach(function (b) { b.classList.toggle('on', b.dataset.k === k); });
+    var d = LOCK[k];
+    document.getElementById('lockNote').textContent = d.note;
+    var box = document.getElementById('lockCards');
+    box.innerHTML = '';
+    d.cards.forEach(function (c) {
+      var el = document.createElement('div');
+      el.className = 'card ' + d.cls;
+      var b = document.createElement('b');
+      b.textContent = c[0];
+      var s = document.createElement('span');
+      s.textContent = c[1];
+      el.appendChild(b); el.appendChild(s);
+      box.appendChild(el);
+    });
+  }
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () { setLock(b.dataset.k); });
+  });
+  setLock('tells');
+})();
+</script>
+</body>
+</html>
