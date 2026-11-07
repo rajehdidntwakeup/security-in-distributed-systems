@@ -10,8 +10,8 @@ TLS is the successor of SSL and today secures practically all data traffic on th
 
 | Function | How TLS achieves it |
 |---|---|
-| **Confidentiality** | All application data is encrypted symmetrically, today e.g. with AES-256-GCM (mission 4). The key is negotiated per session and never appears on the wire. |
-| **Authentication** | The server presents a certificate (mission 7). The client verifies the CA signature and whether the host matches the Subject/SAN. Only the holder of the private key can complete the handshake. |
+| **Confidentiality** | All application data is encrypted symmetrically, today e.g. with AES-256-GCM. The key is negotiated per session and never appears on the wire. |
+| **Authentication** | The server presents a certificate. The client verifies the CA signature and whether the host matches the Subject/SAN. Only the holder of the private key can complete the handshake. |
 | **Integrity** | Every record is AEAD-protected: any single altered bit causes decryption to fail (tag verification). |
 | **Key exchange** | (EC)DHE provides **forward secrecy**: session keys are derived from fresh ephemeral keys and remain secret even if the server's private key is later stolen. |
 | **Perfect backward compatibility** | Version and cipher negotiation at the beginning; outdated versions (TLS 1.0/1.1) are rejected today. |

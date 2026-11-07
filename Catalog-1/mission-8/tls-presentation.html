@@ -6,10 +6,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 
 <style>
-/* Design plan - same identity as Mission-3/4/7 decks (existing project system)
-   Layout: fullscreen slide deck, 8 slides (~5 min), centered column, dots + arrows
-   Color: dark navy surface; teal = secure/verified, red = risk/failure
-   Type: Sora (titles), Manrope (body), IBM Plex Mono (commands, handshake, output) */
 
 :root {
   color-scheme: dark;
@@ -118,7 +114,7 @@ td .no { color: var(--bad); font-weight: 700; }
     <div class="inner">
       <p class="eyebrow">Mission-8 · TLS</p>
       <h1>TLS in Practice: HTTPS in Three Lines</h1>
-      <p class="p">Functions and benefits of Transport Layer Security, and the integration into a sample app using the Mission-7 certificate.</p>
+      <p class="p">Functions and benefits of Transport Layer Security, and the integration into a sample app.</p>
     </div>
   </section>
 
@@ -127,8 +123,8 @@ td .no { color: var(--bad); font-weight: 700; }
     <p class="eyebrow">Functions</p>
     <h2>Four guarantees per connection</h2>
     <div class="cards two">
-      <div class="card good"><b>Confidentiality</b><span>Symmetric bulk encryption (AES-256-GCM, mission 4). The session key never appears on the wire.</span></div>
-      <div class="card good"><b>Authentication</b><span>Server presents a certificate (mission 7). Client verifies CA signature and host match.</span></div>
+      <div class="card good"><b>Confidentiality</b><span>Symmetric bulk encryption (AES-256-GCM). The session key never appears on the wire.</span></div>
+      <div class="card good"><b>Authentication</b><span>Server presents a <certificate></certificate>. Client verifies CA signature and host match.</span></div>
       <div class="card good"><b>Integrity</b><span>AEAD tag over every record: one altered bit and decryption fails.</span></div>
       <div class="card good"><b>Key exchange</b><span>(EC)DHE with ephemeral keys: forward secrecy, old sessions stay secret even if the private key leaks later.</span></div>
     </div>
@@ -162,7 +158,7 @@ td .no { color: var(--bad); font-weight: 700; }
         <span class="node" data-step>4 · Derive session key (ECDHE)</span><span class="op h">→</span>
         <span class="node" data-step>5 · AES-GCM traffic</span>
       </div>
-      <p class="p" id="hsText">Steps 1-5 as above; certificate verification (step 3) is where the Mission-7 certificate enters.</p>
+      <p class="p" id="hsText">Steps 1-5 as above; certificate verification (step 3) is where the certificate enters.</p>
       <div class="demo">
         <div class="stepnum">step <span id="hsNum">1</span> / 5</div>
         <button class="btn" id="hsBtn" type="button" style="background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 16px; font-family:var(--display); font-weight:600; cursor:pointer;">Next step</button>
@@ -181,7 +177,7 @@ context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain(certfile="selfsigned.crt", keyfile="selfsigned.key")
 server = http.server.HTTPServer(("localhost", 8443), Handler)
 server.socket = context.wrap_socket(server.socket, server_side=True)</div>
-      <div class="note">Steps: 1 write the HTTP app as usual → 2 create SSL context → 3 load the Mission-7 certificate pair → 4 wrap the socket. TLS operates below the application code, the Handler never changes.</div>
+      <div class="note">Steps: 1 write the HTTP app as usual → 2 create SSL context → 3 load the certificate pair → 4 wrap the socket. TLS operates below the application code, the Handler never changes.</div>
       <div class="cards two">
         <div class="card"><b>Requirements</b><span>Private key, certificate, host name must match CN (<code>localhost</code>), current TLS library, free port, key hygiene.</span></div>
         <div class="card bad"><b>Self-signed</b><span>Test OK. Clients warn: no CA confirms the identity. Production: Let's Encrypt or own CA.</span></div>
@@ -201,7 +197,7 @@ server.socket = context.wrap_socket(server.socket, server_side=True)</div>
 Protocol  : TLSv1.3
 Cipher    : TLS_AES_256_GCM_SHA384
 Verify return code: <span class="warn">18 (self-signed certificate)</span></div>
-      <div class="note">Code 18 shows the difference between encryption and authentication: the channel succeeds (TLS works), but the identity is not attributable to any third party. Certificate chain: self-signed, exactly as in Mission 7.</div>
+      <div class="note">Code 18 shows the difference between encryption and authentication: the channel succeeds (TLS works), but the identity is not attributable to any third party. Certificate chain: self-signed.</div>
     </div>
   </section>
 
@@ -226,7 +222,7 @@ Verify return code: <span class="warn">18 (self-signed certificate)</span></div>
     <p class="eyebrow">Conclusion</p>
     <h2>Three layers, one secure connection</h2>
     <div class="inner">
-      <p class="p">Mission 4 (<b>AES-256-GCM</b>) encrypts the data, mission 7 (<b>certificate</b>) proves the identity, TLS 1.3 binds both into a channel with forward secrecy. The integration cost: an SSL context, a certificate, a wrapped socket.</p>
+      <p class="p"> (<b>AES-256-GCM</b>) encrypts the data, (<b>certificate</b>) proves the identity, TLS 1.3 binds both into a channel with forward secrecy. The integration cost: an SSL context, a certificate, a wrapped socket.</p>
       <span class="verdict">TLS = AES-GCM + certificate + ephemeral key exchange</span>
     </div>
   </section>
@@ -280,7 +276,7 @@ Verify return code: <span class="warn">18 (self-signed certificate)</span></div>
   var hsStep = 0;
   var texts = [
     'Client sends supported TLS versions, ciphers and a random value.',
-    'Server answers with its chosen version and presents its certificate: selfsigned.crt from Mission 7.',
+    'Server answers with its chosen version and presents its certificate: selfsigned.crt.',
     'The client validates the certificate: signature chain, host match, validity. Self-signed: no CA confirms, warning.',
     'Ephemeral keys are exchanged (ECDHE) and both sides derive the same session key. Forward secrecy: the key exists nowhere on disk.',
     'From now on every record is encrypted and authenticated with AES-256-GCM.'
