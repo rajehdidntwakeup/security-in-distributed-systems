@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Steganography Online</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Manrope:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Design plan - same identity as Mission-3/4/7/8/9/10 decks (existing project system)
+   Layout: fullscreen slide deck, 5 slides (~5 min), centered column, dots + arrows
+   Color: dark navy surface; teal = hidden/safe, red = risk/failure
+   Type: Sora (titles), Manrope (body), IBM Plex Mono (labels, output) */
+
+:root {
+  color-scheme: dark;
+  --bg: #0A0E1A;
+  --surface: #131A2E;
+  --surface-2: #1B2440;
+  --edge: #2A3552;
+  --fg: #E8ECF7;
+  --muted: #93A0BF;
+  --accent: #4FD1C5;
+  --accent-ink: #062A27;
+  --bad: #F87171;
+  --display: "Sora", system-ui, sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+
+.deck { height: 100%; display: grid; }
+
+.slide {
+  grid-area: 1 / 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 56px max(16px, env(safe-area-inset-left, 0px)) 84px max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.slide.active { display: flex; }
+
+.inner { max-width: 64ch; width: 100%; }
+
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 7vw, 4rem); margin: 0; letter-spacing: -0.02em; line-height: 1.08; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 4.5vw, 2.2rem); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+.p { color: var(--muted); font-size: .96rem; max-width: 58ch; margin: 0 auto; }
+.p b, .card b { color: var(--fg); font-weight: 700; }
+code { font-family: var(--mono); font-size: .85em; color: var(--accent); }
+
+.cards { display: grid; gap: 12px; text-align: left; margin: 4px auto 0; width: 100%; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); max-width: 680px; }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 780px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > b { display: block; font-family: var(--display); font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+.card span { color: var(--muted); font-size: .87rem; }
+.card.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--edge)); }
+.card.good { border-color: color-mix(in srgb, var(--accent) 45%, var(--edge)); }
+
+.demo { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 16px; max-width: 720px; margin: 0 auto; width: 100%; text-align: left; display: grid; gap: 10px; }
+.demo .code { font-family: var(--mono); font-size: .8rem; color: var(--muted); line-height: 1.7; overflow-x: auto; white-space: pre; }
+.demo .code .c { color: var(--muted); }
+.demo .code .k { color: var(--accent); }
+.demo .code .warn { color: var(--bad); font-weight: 700; }
+.demo .note { color: var(--muted); font-size: .8rem; }
+
+.pixel-demo { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; font-family: var(--mono); font-size: .82rem; }
+.pixel { width: 54px; height: 54px; border-radius: 9px; border: 2px solid var(--edge); display: grid; place-items: center; font-size: .55rem; color: rgba(255,255,255,.75); letter-spacing: .05em; }
+.pixel.src { background: #34D399; }
+.pixel.dst { background: #34D398; }
+.px-arrow { color: var(--muted); }
+.bitrow { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.bitrow .flip { color: var(--accent); font-weight: 700; }
+.bitrow .warn { color: var(--bad); font-weight: 700; }
+
+.tri-picker { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.tri-picker button { background: var(--surface-2); color: var(--muted); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 16px; font-family: var(--display); font-weight: 600; font-size: .85rem; cursor: pointer; transition: color .2s, border-color .2s; }
+.tri-picker button.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--edge)); }
+
+.verdict { font-family: var(--mono); font-size: .78rem; color: var(--bg); background: var(--accent); display: inline-block; padding: 4px 14px; border-radius: 999px; }
+.verdict.bad { background: var(--bad); color: #2B0808; }
+
+.tablewrap { overflow-x: auto; max-width: 760px; width: 100%; margin: 0 auto; }
+table { border-collapse: collapse; font-size: .85rem; min-width: 560px; width: 100%; }
+th, td { border: 1px solid var(--edge); padding: 8px 10px; text-align: left; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: var(--surface); }
+td { color: var(--muted); background: var(--surface); }
+td:first-child { color: var(--fg); font-weight: 700; }
+td .yes { color: var(--accent); font-weight: 700; }
+td .no { color: var(--bad); font-weight: 700; }
+
+.dots { position: fixed; top: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 5; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); border: 0; padding: 0; cursor: pointer; }
+.dot.active { background: var(--accent); }
+.ctrl { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.ctrl button { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 14px; font-family: var(--display); font-weight: 600; font-size: .8rem; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.pgnum { position: fixed; right: 18px; bottom: 18px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 5; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1 · title -->
+  <section class="slide" id="s1">
+    <div class="inner">
+      <p class="eyebrow">Mission-1 · Steganography</p>
+      <h1>Steganography Online</h1>
+      <p class="p">Hiding text inside a picture nobody can see it in. How the browser tool <b>stylesuxx.github.io/steganography</b> embeds and extracts secret messages. And how to catch them.</p>
+    </div>
+  </section>
+
+  <!-- 2 · fundamentals + how it works -->
+  <section class="slide" id="s2">
+    <p class="eyebrow">Fundamentals · How it works</p>
+    <h2>Hide the existence: in the last bit</h2>
+    <div class="cards two">
+      <div class="card good"><b>Steganography vs. encryption</b><span>Encryption scrambles content but <b>reveals that a secret exists</b>. Steganography covers it inside an ordinary file: the observer sees only the image.</span></div>
+      <div class="card"><b>LSB steganography</b><span>Each pixel has R,G,B values, 8 bits each. The message becomes a bitstream that <b>overwrites the lowest bit</b> of each channel; value shifts ≤ 1 of 255, invisible.</span></div>
+    </div>
+    <div class="demo">
+      <div class="pixel-demo">
+        <div class="pixel src" id="pxA">#34D399</div>
+        <div class="px-arrow">→ last bit flipped →</div>
+        <div class="pixel dst" id="pxB">#34D398</div>
+      </div>
+      <div class="bitrow">R&nbsp;=&nbsp;<b>00110010</b>&nbsp;(unchanged)&nbsp;&nbsp;G&nbsp;=&nbsp;<b>100110<span class="warn">1</span> → 100110<span class="flip">0</span></b>&nbsp;&nbsp;B&nbsp;=&nbsp;<b>10011001</b>&nbsp;(unchanged)</div>
+      <div class="note">Runs fully client-side via JavaScript + HTML canvas: <b>nothing is uploaded</b>, output downloads as lossless PNG. Can you spot the difference between the two swatches? Nobody can. That is the point.</div>
+    </div>
+  </section>
+
+  <!-- 3 · in the tool -->
+  <section class="slide" id="s3">
+    <p class="eyebrow">In the tool</p>
+    <h2>Encode, decode: no key involved</h2>
+    <div class="cards two">
+      <div class="card good"><b>Encode</b><span>Load carrier image → type message → tool walks pixel channels, writes message bits into the LSBs → download stego PNG.</span></div>
+      <div class="card good"><b>Decode</b><span>Upload the stego PNG → tool reads the LSBs back out → reassembles the message. <b>No key needed: anyone</b> can decode.</span></div>
+      <div class="card"><b>Capacity</b><span>One hidden bit per channel per pixel. A 1000×1000 image holds ≈ 375 KB of payload, and no more.</span></div>
+      <div class="card"><b>Fragile</b><span>Any lossy step (JPEG conversion, resizing, cropping, screenshots, social-media recompression) <b>destroys the payload</b>. Only PNG-to-PNG survives bit-exact.</span></div>
+    </div>
+    <div class="demo">
+      <div class="code"><span class="k">stego.png</span>  →  post to social media  →  <span class="warn">JPEG recompression wipes every LSB</span>
+<span class="k">stego.png</span>  →  screenshot              →  <span class="warn">message is gone</span></div>
+    </div>
+  </section>
+
+  <!-- 4 · toggle: weaknesses / detection (interactive) -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Cons &amp; detection</p>
+    <h2>Weaknesses, and how to catch them</h2>
+    <div class="inner">
+      <div class="tri-picker" id="risk">
+        <button type="button" data-k="weak" class="on">The tool's weaknesses</button>
+        <button type="button" data-k="detect">How to detect hidden data</button>
+      </div>
+      <div class="demo">
+        <div class="cards two" id="riskCards"></div>
+        <div class="note" id="riskNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · takeaway -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Conclusion</p>
+    <h2>Good teaching tool, not a security tool</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Claim</th><th>Verdict</th></tr>
+        <tr><td>Free, no install, client-side, no upload</td><td><span class="yes">True</span>: data stays on-device</td></tr>
+        <tr><td>Invisible to the eye; lossless PNG output</td><td><span class="yes">True</span>: payload survives</td></tr>
+        <tr><td>Message stays secret</td><td><span class="no">No</span>: no encryption, no password; anyone can decode</td></tr>
+        <tr><td>Hidden data undetectable</td><td><span class="no">No</span>: plain sequential LSB, zsteg &amp; statistics catch it fast</td></tr>
+        <tr><td>Survives JPEG / screenshots / social media</td><td><span class="no">No</span>: any lossy step destroys the payload</td></tr>
+      </table>
+    </div>
+    <div class="inner">
+      <span class="verdict bad">No encryption inside: encrypt first</span>
+      <p class="p">It demonstrates the idea perfectly: instant, invisible, fully client-side. But plain LSB hiding against anyone with <b>zsteg</b> is concealment, not security. Fine for learning, CTFs, watermarks, but not for real adversaries.</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="ctrl">
+  <button id="prev" type="button">← Back</button>
+  <button id="next" type="button">Next →</button>
+</div>
+<div class="pgnum" id="pgnum"></div>
+
+<script>
+(function () {
+  /* deck navigation */
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsBox = document.getElementById('dots');
+  var pgnum = document.getElementById('pgnum');
+  var i = 0;
+
+  slides.forEach(function (s, n) {
+    var d = document.createElement('button');
+    d.className = 'dot';
+    d.type = 'button';
+    d.setAttribute('aria-label', 'Slide ' + (n + 1));
+    d.addEventListener('click', function () { go(n); });
+    dotsBox.appendChild(d);
+  });
+  var dots = Array.prototype.slice.call(dotsBox.children);
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    dots.forEach(function (d, k) { d.classList.toggle('active', k === i); });
+    pgnum.textContent = (i + 1) + ' / ' + slides.length;
+  }
+
+  document.getElementById('prev').addEventListener('click', function () { go(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { go(i + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') go(i + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(i - 1);
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+  go(0);
+
+  /* weaknesses / detection toggle on slide 4 */
+  var RISK = {
+    weak: {
+      cls: 'bad',
+      note: 'The tool hides content but offers no secrecy: no password, no key, easy detection, small capacity, fragile against lossy steps.',
+      cards: [
+        ['No encryption, no password', 'Anyone who knows it is LSB can read the message with a second click.'],
+        ['Easy to detect', 'Plain sequential LSB is the most-analyzed method; tools like zsteg catch it in seconds.'],
+        ['PNG only, limited capacity', 'Carrier must be large enough; one hidden bit per channel per pixel.']
+      ]
+    },
+    detect: {
+      cls: 'good',
+      note: 'Detection means telling a stego image from a clean one: statistical oddities and exposed bit planes give LSB hiding away.',
+      cards: [
+        ['zsteg & CLI scanners', 'Free tools enumerate the LSB planes of a PNG and flag embedded strings and bitstreams.'],
+        ['Statistical analysis', 'Embedding flattens the LSB histogram; chi-square and RS analysis spot the distortion.'],
+        ['Visual bit-plane view', 'Rendering the lowest bits as an image exposes the payload as noise bands.']
+      ]
+    }
+  };
+  var btns = Array.prototype.slice.call(document.querySelectorAll('#risk button'));
+  function setRisk(k) {
+    btns.forEach(function (b) { b.classList.toggle('on', b.dataset.k === k); });
+    var d = RISK[k];
+    document.getElementById('riskNote').textContent = d.note;
+    var box = document.getElementById('riskCards');
+    box.innerHTML = '';
+    d.cards.forEach(function (c) {
+      var el = document.createElement('div');
+      el.className = 'card ' + d.cls;
+      var b = document.createElement('b');
+      b.textContent = c[0];
+      var s = document.createElement('span');
+      s.textContent = c[1];
+      el.appendChild(b); el.appendChild(s);
+      box.appendChild(el);
+    });
+  }
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () { setRisk(b.dataset.k); });
+  });
+  setRisk('weak');
+})();
+</script>
+</body>
+</html>
