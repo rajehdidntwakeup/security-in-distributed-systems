@@ -124,26 +124,11 @@ td .no { color: var(--bad); font-weight: 700; }
     <h2>Four guarantees per connection</h2>
     <div class="cards two">
       <div class="card good"><b>Confidentiality</b><span>Symmetric bulk encryption (AES-256-GCM). The session key never appears on the wire.</span></div>
-      <div class="card good"><b>Authentication</b><span>Server presents a <certificate></certificate>. Client verifies CA signature and host match.</span></div>
+      <div class="card good"><b>Authentication</b><span>Server presents a <code>certificate</code>. Client verifies CA signature and host match.</span></div>
       <div class="card good"><b>Integrity</b><span>AEAD tag over every record: one altered bit and decryption fails.</span></div>
       <div class="card good"><b>Key exchange</b><span>(EC)DHE with ephemeral keys: forward secrecy, old sessions stay secret even if the private key leaks later.</span></div>
     </div>
-  </section>
-
-  <!-- 3 · benefits -->
-  <section class="slide" id="s3">
-    <p class="eyebrow">Benefits</p>
-    <h2>What this buys you</h2>
-    <div class="inner">
-      <div class="cards three">
-        <div class="card"><b>Anti-eavesdropping</b><span>Hotspot, ISP, backbone see sizes and IPs, not content.</span></div>
-        <div class="card"><b>Anti-tampering</b><span>Injected content and modified responses break the tag.</span></div>
-        <div class="card"><b>Proof of identity</b><span>Banking and e-commerce rest on knowing who answers.</span></div>
-        <div class="card"><b>Compliance</b><span>GDPR, PCI-DSS demand encryption in transit.</span></div>
-        <div class="card"><b>Cheap</b><span>One context, one certificate, zero app changes.</span></div>
-        <div class="card"><b>Fast</b><span>TLS 1.3 handshake: one round trip, 0-RTT resumption.</span></div>
-      </div>
-    </div>
+    <p class="p">Buys you: <b>anti-eavesdropping</b> (ISP sees sizes and IPs, not content) · <b>anti-tampering</b> (injected content breaks the tag) · <b>proof of identity</b> (banking, e-commerce) · <b>compliance</b> (GDPR, PCI-DSS) · and none of it is expensive: one context, one certificate, zero app changes; TLS 1.3 handshake = one round trip, 0-RTT resumption.</p>
   </section>
 
   <!-- 4 · handshake -->
@@ -167,43 +152,31 @@ td .no { color: var(--bad); font-weight: 700; }
     </div>
   </section>
 
-  <!-- 5 · integration -->
-  <section class="slide" id="s5">
-    <p class="eyebrow">Integration · sample app</p>
+  <!-- 4 · integration + verified run -->
+  <section class="slide" id="s4">
+    <p class="eyebrow">Integration · verified run</p>
     <h2>Plain HTTP app, wrapped with TLS</h2>
     <div class="demo">
       <div class="code"><span class="c"># everything needed, from tls_demo.py</span>
 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain(certfile="selfsigned.crt", keyfile="selfsigned.key")
 server = http.server.HTTPServer(("localhost", 8443), Handler)
-server.socket = context.wrap_socket(server.socket, server_side=True)</div>
-      <div class="note">Steps: 1 write the HTTP app as usual → 2 create SSL context → 3 load the certificate pair → 4 wrap the socket. TLS operates below the application code, the Handler never changes.</div>
-      <div class="cards two">
-        <div class="card"><b>Requirements</b><span>Private key, certificate, host name must match CN (<code>localhost</code>), current TLS library, free port, key hygiene.</span></div>
-        <div class="card bad"><b>Self-signed</b><span>Test OK. Clients warn: no CA confirms the identity. Production: Let's Encrypt or own CA.</span></div>
-      </div>
-    </div>
-  </section>
+server.socket = context.wrap_socket(server.socket, server_side=True)
 
-  <!-- 6 · verify -->
-  <section class="slide" id="s6">
-    <p class="eyebrow">Verified run</p>
-    <h2>Measured, not assumed</h2>
-    <div class="demo">
-      <div class="code"><span class="c">$ curl -sk https://localhost:8443/health</span>
+<span class="c">$ curl -sk https://localhost:8443/health</span>
 {"status": "ok", "tls": true}
 
 <span class="c">$ openssl s_client -connect localhost:8443</span>
 Protocol  : TLSv1.3
 Cipher    : TLS_AES_256_GCM_SHA384
 Verify return code: <span class="warn">18 (self-signed certificate)</span></div>
-      <div class="note">Code 18 shows the difference between encryption and authentication: the channel succeeds (TLS works), but the identity is not attributable to any third party. Certificate chain: self-signed.</div>
+      <div class="note">Steps: 1 write the HTTP app → 2 create SSL context → 3 load the certificate pair → 4 wrap the socket. TLS operates below the application code, the Handler never changes. Code 18: the channel succeeds (encryption works), but no CA confirms the identity — self-signed is fine for tests; production needs Let's Encrypt or an own CA.</div>
     </div>
   </section>
 
-  <!-- 7 · limits -->
-  <section class="slide" id="s7">
-    <p class="eyebrow">Sample vs production</p>
+  <!-- 5 · limits + conclusion -->
+  <section class="slide" id="s5">
+    <p class="eyebrow">Lab vs production · conclusion</p>
     <h2>What the lab version still lacks</h2>
     <div class="tablewrap">
       <table>
@@ -211,18 +184,10 @@ Verify return code: <span class="warn">18 (self-signed certificate)</span></div>
         <tr><td>Self-signed certificate</td><td><span class="yes">CA-signed</span>, auto-renewed (Let's Encrypt/ACME)</td></tr>
         <tr><td>No chain of trust</td><td>Verification against the system trust store</td></tr>
         <tr><td>Warning in browser</td><td><span class="yes">Padlock without warning</span>, HSTS, redirect HTTP→HTTPS</td></tr>
-        <tr><td>Only server authenticated</td><td>Optional mutual TLS (mTLS) for clients</td></tr>
-        <tr><td>Single thread</td><td>Thread pool, OCSP stapling, monitoring</td></tr>
       </table>
     </div>
-  </section>
-
-  <!-- 8 · takeaway -->
-  <section class="slide" id="s8">
-    <p class="eyebrow">Conclusion</p>
-    <h2>Three layers, one secure connection</h2>
     <div class="inner">
-      <p class="p"> (<b>AES-256-GCM</b>) encrypts the data, (<b>certificate</b>) proves the identity, TLS 1.3 binds both into a channel with forward secrecy. The integration cost: an SSL context, a certificate, a wrapped socket.</p>
+      <p class="p"><b>AES-256-GCM</b> encrypts the data, the <b>certificate</b> proves the identity, TLS 1.3 binds both into a channel with forward secrecy. The integration cost: an SSL context, a certificate, a wrapped socket.</p>
       <span class="verdict">TLS = AES-GCM + certificate + ephemeral key exchange</span>
     </div>
   </section>
