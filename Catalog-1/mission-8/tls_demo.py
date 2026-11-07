@@ -9,7 +9,7 @@ Run from this folder:
 Then open in a browser:
     https://localhost:8443
 The browser will warn "not trusted" - that is expected, because the
-certificate from Mission 7 is self-signed (Issuer = Subject).
+certificate is self-signed (Issuer = Subject).
 """
 import http.server
 import ssl
