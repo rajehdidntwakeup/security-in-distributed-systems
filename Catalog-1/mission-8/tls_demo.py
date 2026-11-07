@@ -27,8 +27,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             body = ("<h1>HTTPS works!</h1>"
-                    "<p>This is the Mission-8 sample app, served over TLS 1.3 "
-                    "with the self-signed certificate from Mission 7.</p>").encode()
+                    "<p>This is the Mission-8, served over TLS 1.3 "
+                    "with the self-signed certificate</p>").encode()
         elif self.path == "/health":
             body = b'{"status": "ok", "tls": true}'
         else:
